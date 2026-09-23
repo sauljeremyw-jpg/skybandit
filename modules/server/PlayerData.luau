@@ -1,6 +1,7 @@
 --!strict
 -- ProfileStore owns persistence. We only wrap session lifecycle so services never talk to DataStore directly.
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Types = require(Shared:WaitForChild("Types"))
@@ -94,7 +95,8 @@ local function loadPlayer(player: Player)
 	if store == nil then
 		return
 	end
-	local profile = store:StartSessionAsync("Player_" .. player.UserId, {
+	local session = if RunService:IsStudio() then store.Mock else store
+	local profile = session:StartSessionAsync("Player_" .. player.UserId, {
 		Cancel = function()
 			return player.Parent ~= Players
 		end,
