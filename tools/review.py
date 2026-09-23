@@ -15,9 +15,9 @@ ALLOWED = {
     "modules/shared/Net.luau": {"GameConfig"},
     "modules/server/PlayerData.luau": {"Types", "GameConfig", "ProfileStore"},
     "modules/server/WorldBuilder.luau": {"GameConfig"},
-    "modules/server/FlightService.luau": {"Types", "GameConfig"},
-    "modules/server/EconomyService.luau": {"GameConfig", "PlayerData"},
-    "modules/server/PetService.luau": {"Types", "GameConfig", "PlayerData"},
+    "modules/server/FlightService.luau": {"GameConfig", "Net"},
+    "modules/server/EconomyService.luau": {"Types", "GameConfig", "Net", "PlayerData"},
+    "modules/server/PetService.luau": {"Types", "GameConfig", "PlayerData", "EconomyService"},
     "modules/server/HeistService.luau": {
         "Types",
         "GameConfig",
@@ -31,7 +31,12 @@ ALLOWED = {
         "Net",
         "WorldBuilder",
         "PlayerData",
+        "FlightService",
+        "EconomyService",
+        "PetService",
         "HeistService",
+        "GameConfig",
+        "Types",
     },
     "modules/client/FlightController.luau": {"Types", "GameConfig", "Net"},
     "modules/client/init.client.luau": {"Net", "FlightController"},
@@ -83,9 +88,11 @@ def scan_file(path: pathlib.Path) -> None:
             blob = req.group(1)
             names = re.findall(r'["\'](\w+)["\']|WaitForChild\(["\'](\w+)["\']\)|:WaitForChild\(["\'](\w+)["\']\)|Parent\.(\w+)|script\.Parent\.(\w+)', blob)
             flat = {n for tup in names for n in tup if n}
+            # also bare require(script.Parent.X)
             bare = re.findall(r"script\.Parent(?:\.Parent)*\.(\w+)", blob)
             flat.update(bare)
             extra = flat - ALLOWED[r] - {"Shared", "Packages", "Parent"}
+            # filter service names
             extra -= {"GetService"}
             suspicious = extra & {
                 "WorldBuilder",

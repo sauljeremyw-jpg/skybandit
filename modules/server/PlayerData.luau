@@ -15,16 +15,17 @@ export type Profile = {
 	EndSession: (self: Profile) -> (),
 	Save: (self: Profile) -> (),
 	IsActive: (self: Profile) -> boolean,
-	OnSessionEnd: RBXScriptSignal,
+	AddUserId: (self: Profile, userId: number) -> (),
+	OnSessionEnd: { Connect: (self: any, listener: () -> ()) -> () },
 }
 
 local PlayerData = {}
 local started = false
+local store: any = nil
 local cache: { [Player]: Profile } = {}
 local loadedListeners: { (Player, Types.PlayerSave) -> () } = {}
 
 local function defaultSave(): Types.PlayerSave
-	local nowUnix = os.time()
 	return {
 		schemaVersion = CURRENT_SCHEMA,
 		coins = 0,
@@ -34,8 +35,8 @@ local function defaultSave(): Types.PlayerSave
 		passes = { x2Coins = false, fastHatch = false, bigVault = false, skyCrew = false },
 		stats = { runs = 0, eggsDelivered = 0, eggsLost = 0, eggsStolen = 0, eggsStolenFromMe = 0 },
 		meta = {
-			firstJoinUnix = nowUnix,
-			lastSeenUnix = nowUnix,
+			firstJoinUnix = 0,
+			lastSeenUnix = 0,
 			streakDays = 0,
 			ascensions = 0,
 			lastPurchaseId = nil,
@@ -90,7 +91,9 @@ function PlayerData.onLoaded(listener: (Player, Types.PlayerSave) -> ())
 end
 
 local function loadPlayer(player: Player)
-	local store = ProfileStore.GetProfileStore(GameConfig.Data.StoreName, defaultSave())
+	if store == nil then
+		return
+	end
 	local profile = store:StartSessionAsync("Player_" .. player.UserId, {
 		Cancel = function()
 			return player.Parent ~= Players
@@ -100,11 +103,15 @@ local function loadPlayer(player: Player)
 		player:Kick("Your data is busy on another server. Rejoin in a moment.")
 		return
 	end
+	profile:AddUserId(player.UserId)
 	if not migrate(profile.Data, player) then
 		profile:EndSession()
 		return
 	end
 	profile:Reconcile()
+	if profile.Data.meta.firstJoinUnix == 0 then
+		profile.Data.meta.firstJoinUnix = os.time()
+	end
 	profile.OnSessionEnd:Connect(function()
 		cache[player] = nil
 		if player.Parent == Players then
@@ -122,6 +129,7 @@ function PlayerData.start()
 		return
 	end
 	started = true
+	store = ProfileStore.New(GameConfig.Data.StoreName, defaultSave())
 	if ProfileStore.SetConstant then
 		ProfileStore.SetConstant("AUTO_SAVE_PERIOD", GameConfig.Data.AutosaveSeconds)
 	end

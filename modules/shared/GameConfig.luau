@@ -61,6 +61,13 @@ GameConfig.Net = { MaxPayloadBytes = 4_096, MaxPayloadEntries = 200, DefaultLimi
 GameConfig.Flight = { LiftK = 0.012, LiftCap = 200, DragK = 0.004, DiveExchangeRate = 1.2, StallAirspeed = 40, CorrectionLerpSeconds = 0.2, MaxDt = 0.05, SnapshotHz = 10 }
 GameConfig.Intercept = { Radius = 25, PairCooldownSeconds = 30, NewPlayerImmunitySeconds = 30 * 60 }
 GameConfig.World = { BaseSpacing = 600, BasePlatformSize = Vector3.new(90, 4, 90), LaunchEdgeAltitude = 120, IslandRadius = 120, IslandDistanceFactor = 0.92, IslandAngleStepDegrees = 37, NestGrabRadius = 20, NestRespawnSeconds = 15 }
+function GameConfig.terminalSpeed(carrying: boolean): number
+	local speed = math.sqrt(GameConfig.Flight.LiftCap / GameConfig.Flight.DragK)
+	if carrying then
+		speed *= GameConfig.Economy.CarrySpeedPenalty
+	end
+	return speed
+end
 function GameConfig.getAircraft(tier)
 	for _, a in GameConfig.Aircraft do
 		if a.tier == tier then

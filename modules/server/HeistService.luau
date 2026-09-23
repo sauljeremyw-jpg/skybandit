@@ -52,6 +52,7 @@ function HeistService.forceDrop(player: Player, reason: string)
 	end
 	carried[player] = nil
 	nestLocks[egg.islandId] = false
+	FlightService.setCarrying(player, false)
 	local save = PlayerData.get(player)
 	if save then
 		save.stats.eggsLost += 1
@@ -107,6 +108,7 @@ local function tryGrab(player: Player, payload: any): (boolean, string?)
 		rarityRollSeed = seed,
 	}
 	lastGrabAt[player] = os.clock()
+	FlightService.setCarrying(player, true)
 	replicate(player)
 	return true, nil
 end
@@ -140,6 +142,7 @@ local function tryDeliver(player: Player, _payload: any): (boolean, string?)
 	end
 	carried[player] = nil
 	nestLocks[egg.islandId] = false
+	FlightService.setCarrying(player, false)
 	replicate(player)
 	return true, nil
 end
@@ -154,6 +157,8 @@ function HeistService.transfer(fromPlayer: Player, toPlayer: Player): (boolean, 
 	end
 	carried[fromPlayer] = nil
 	carried[toPlayer] = egg
+	FlightService.setCarrying(fromPlayer, false)
+	FlightService.setCarrying(toPlayer, true)
 	replicate(fromPlayer)
 	replicate(toPlayer)
 	return true, nil
@@ -179,6 +184,7 @@ function HeistService.start()
 			end
 			nestLocks[carried[player].islandId] = false
 			carried[player] = nil
+			FlightService.setCarrying(player, false)
 		end
 		lastGrabAt[player] = nil
 	end)

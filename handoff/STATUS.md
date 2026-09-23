@@ -1,28 +1,25 @@
 # Status 2026-09-22
 
-Started from this Grok chat (not the SkyBandit bot roster) so the 48-hour bot budget stays untouched. Claude tokens can iterate from the files now on `main`.
+Built in this chat. No Claude credits and no SkyBandit bots used.
 
-## Landed on main
+## Landed
 
-- Day-1 foundation: Types, GameConfig, Net, PlayerData, WorldBuilder, boot scripts, Rojo/selene/gitignore
-- FlightController (client predict + 10Hz claim snapshots + lerp corrections)
-- HeistService (server grab/deliver, nest locks, MinRunSeconds anti-teleport)
-- Thin FlightService / EconomyService / PetService so Heist compiles without waiting on full economy
+- Day-1 foundation, FlightController, HeistService, static review gate (green)
+- Real MadStudio ProfileStore vendored. PlayerData uses `ProfileStore.New` and session lock. Saves persist.
+- FlightService rejects claims that outrun `terminalSpeed` or the aircraft range, and sends a position correction.
+- Touching JumpPad launches. Glide uses the config lift, drag, and dive exchange. Carrying no longer multiplies speed every frame.
+- EconomyService soft-caps grants toward `IncomeSoftCapFactor` (full payout at 0 coins, approaching 0.35 as coins pass the tier-4 aircraft cost). x2 Coins applies before the cap.
+- PetService rolls rarity, respects perch cap, and pays `PetBaseIncome` each second through EconomyService.
+- HUD snapshot updates when coins change.
 
-## GameConfig additions (needed by Heist, not in original paste)
+## Still not launch
 
-- `World.NestGrabRadius = 20`
-- `World.NestRespawnSeconds = 15`
-- `islandWorldPosition(id)` helper so Heist does not require WorldBuilder
+- No Studio playtest. The 7 Day-1 checks and the two flight/heist tests have not been run in Roblox.
+- Game-pass and developer-product ids are still 0. Nothing is for sale.
+- Islands past the first four are not built (`inSlice = false`).
+- No intercept combat, no hatch/upgrade UI, no aircraft purchase.
+- Dive and launch feel are untested. Do not retune `LiftK` / `DragK` until a Studio run shows the meadowrock margin is off.
 
-## Not done
+## Assumption
 
-- Full FlightService (authoritative integration, range entitlement from pets)
-- Soft-cap EconomyService
-- Real ProfileStore vendor (stub in Packages/)
-- Studio playtest of the 7 Day-1 checks and the two module tests
-- Reviewer pass against live Studio output
-
-## How to continue in Claude Code
-
-Clone `sauljeremyw-jpg/skybandit`, paste `briefs/CLAUDE_CODE_KICKOFF.md`, treat `modules/` as source of truth. Do not re-prompt the Grok SkyBandit bots unless a physics/exploit judgment is blocked.
+Soft-cap scale is the tier-4 aircraft cost already in GameConfig (600,000). No new economy number was invented.

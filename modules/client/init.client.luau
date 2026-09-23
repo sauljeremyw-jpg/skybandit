@@ -30,4 +30,8 @@ Net.on("save:snapshot", function(payload)
 	label.Text = string.format("coins %s  tier %s  pets %s", tostring(payload.coins), tostring(payload.aircraftTier), tostring(payload.petCount))
 end)
 
+Net.on("replica:carry", function(payload)
+	FlightController.setCarrying(typeof(payload) == "table")
+end)
+
 print("[SkyBandit] debug:ping", Net.invoke("debug:ping", {}))
