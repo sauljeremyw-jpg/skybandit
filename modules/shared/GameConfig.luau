@@ -105,7 +105,7 @@ function GameConfig.islandWorldPosition(id: string, sliceIndex: number?): Vector
 	if index == nil then
 		return nil
 	end
-	local distance = island.rangeNeeded * GameConfig.World.IslandDistanceFactor
+	local distance = if index == 1 then 180 else island.rangeNeeded * GameConfig.World.IslandDistanceFactor
 	local angle = if index == 1 then math.rad(90) else math.rad(GameConfig.World.IslandAngleStepDegrees * index)
 	local drop = math.min(distance * 0.18, GameConfig.World.LaunchEdgeAltitude * 0.6)
 	local altitude = GameConfig.World.LaunchEdgeAltitude - drop

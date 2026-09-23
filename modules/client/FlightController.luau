@@ -83,6 +83,15 @@ local function flying(): boolean
 	return state.mode == "Gliding" or state.mode == "Launched" or state.mode == "Stalled"
 end
 
+local function miss(root: BasePart)
+	state.mode = "Grounded"
+	state.velocity = Vector3.zero
+	local humanoid = humanoidOf(root)
+	if humanoid and humanoid.Health > 0 then
+		humanoid.Health = 0
+	end
+end
+
 local function step(dt: number)
 	dt = math.min(dt, GameConfig.Flight.MaxDt)
 	local root = characterRoot()
@@ -145,23 +154,32 @@ local function step(dt: number)
 		end
 	end
 	state.altitude = state.position.Y
-	if root and flying() and not correcting and state.t >= launchedUntil and state.velocity.Y <= 8 then
-		local params = RaycastParams.new()
-		params.FilterType = Enum.RaycastFilterType.Exclude
-		local character = root.Parent
-		if character then
-			params.FilterDescendantsInstances = { character }
-		end
-		local hit = workspace:Raycast(state.position, Vector3.new(0, -12, 0), params)
-		if hit and state.position.Y - hit.Position.Y < 6 then
-			state.mode = "Grounded"
-			state.velocity = Vector3.zero
-			state.position = Vector3.new(state.position.X, hit.Position.Y + 3, state.position.Z)
-			root.AssemblyLinearVelocity = Vector3.zero
-			root.CFrame = CFrame.new(state.position)
-			local humanoid = humanoidOf(root)
-			if humanoid then
-				humanoid.PlatformStand = false
+	if root and flying() and not correcting and state.t >= launchedUntil then
+		if state.position.Y < 40 then
+			miss(root)
+		elseif state.velocity.Y <= 8 then
+			local params = RaycastParams.new()
+			params.FilterType = Enum.RaycastFilterType.Exclude
+			local character = root.Parent
+			if character then
+				params.FilterDescendantsInstances = { character }
+			end
+			local hit = workspace:Raycast(state.position, Vector3.new(0, -12, 0), params)
+			if hit and state.position.Y - hit.Position.Y < 6 then
+				local safe = hit.Instance:FindFirstAncestor("GeneratedWorld") ~= nil and hit.Position.Y >= 40
+				if not safe then
+					miss(root)
+				else
+					state.mode = "Grounded"
+					state.velocity = Vector3.zero
+					state.position = Vector3.new(state.position.X, hit.Position.Y + 3, state.position.Z)
+					root.AssemblyLinearVelocity = Vector3.zero
+					root.CFrame = CFrame.new(state.position)
+					local humanoid = humanoidOf(root)
+					if humanoid then
+						humanoid.PlatformStand = false
+					end
+				end
 			end
 		end
 	end
@@ -261,6 +279,8 @@ function FlightController.start()
 		step(dt)
 	end)
 	Players.LocalPlayer.CharacterAdded:Connect(function(character)
+		state.mode = "Grounded"
+		state.velocity = Vector3.zero
 		local root = character:WaitForChild("HumanoidRootPart")
 		if not root:IsA("BasePart") then
 			return

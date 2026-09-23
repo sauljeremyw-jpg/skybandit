@@ -56,6 +56,8 @@ local function buildBase(parent: Folder)
 	spawn.CFrame = CFrame.new(0, altitude + size.Y / 2 + 0.5, 0)
 	spawn.Anchored = true
 	spawn.Neutral = true
+	spawn.Duration = 0
+	spawn.Enabled = true
 	spawn.Parent = base
 	base.PrimaryPart = platform
 end
@@ -105,6 +107,11 @@ function WorldBuilder.build()
 		end
 	end
 	assertAnchored(folder)
+	for _, child in Workspace:GetDescendants() do
+		if child:IsA("SpawnLocation") and not child:IsDescendantOf(folder) then
+			child:Destroy()
+		end
+	end
 end
 
 function WorldBuilder.start()
