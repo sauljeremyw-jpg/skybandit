@@ -1,0 +1,15 @@
+name: SkyBandit review
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  static-review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Architecture gate
+        run: python tools/review.py
