@@ -83,6 +83,39 @@ local function flying(): boolean
 	return state.mode == "Gliding" or state.mode == "Launched" or state.mode == "Stalled"
 end
 
+local function landOn(root: BasePart, point: Vector3)
+	state.mode = "Grounded"
+	state.velocity = Vector3.zero
+	state.position = point
+	root.AssemblyLinearVelocity = Vector3.zero
+	root.CFrame = CFrame.new(point)
+	local humanoid = humanoidOf(root)
+	if humanoid then
+		humanoid.PlatformStand = false
+	end
+end
+
+local function islandUnder(): Vector3?
+	for _, island in GameConfig.Islands do
+		if island.inSlice then
+			local origin = GameConfig.islandWorldPosition(island.id)
+			if origin then
+				local flat = Vector3.new(state.position.X - origin.X, 0, state.position.Z - origin.Z)
+				local top = origin.Y + 5
+				if flat.Magnitude <= GameConfig.World.IslandRadius - 4 then
+					if state.position.Y > top then
+						state.velocity = Vector3.new(state.velocity.X * 0.8, math.min(state.velocity.Y, -45), state.velocity.Z * 0.8)
+					end
+					if state.position.Y <= top + 10 then
+						return Vector3.new(origin.X + flat.X, top, origin.Z + flat.Z)
+					end
+				end
+			end
+		end
+	end
+	return nil
+end
+
 local function miss(root: BasePart)
 	state.mode = "Grounded"
 	state.velocity = Vector3.zero
@@ -155,7 +188,10 @@ local function step(dt: number)
 	end
 	state.altitude = state.position.Y
 	if root and flying() and not correcting and state.t >= launchedUntil then
-		if state.position.Y < 40 then
+		local spot = islandUnder()
+		if spot then
+			landOn(root, spot)
+		elseif state.position.Y < 40 then
 			miss(root)
 		elseif state.velocity.Y <= 8 then
 			local params = RaycastParams.new()
@@ -170,15 +206,7 @@ local function step(dt: number)
 				if not safe then
 					miss(root)
 				else
-					state.mode = "Grounded"
-					state.velocity = Vector3.zero
-					state.position = Vector3.new(state.position.X, hit.Position.Y + 3, state.position.Z)
-					root.AssemblyLinearVelocity = Vector3.zero
-					root.CFrame = CFrame.new(state.position)
-					local humanoid = humanoidOf(root)
-					if humanoid then
-						humanoid.PlatformStand = false
-					end
+					landOn(root, Vector3.new(state.position.X, hit.Position.Y + 3, state.position.Z))
 				end
 			end
 		end
@@ -248,7 +276,7 @@ function FlightController.start()
 			local pulled = payload.position - state.position
 			if pulled.Magnitude > 1 then
 				local radial = Vector3.new(state.position.X, 0, state.position.Z)
-				if radial.Magnitude > 1 then
+				if radial.Magnitude > 1 and pulled:Dot(radial.Unit) < 0 then
 					local outward = radial.Unit
 					local outwardSpeed = Vector3.new(state.velocity.X, 0, state.velocity.Z):Dot(outward)
 					if outwardSpeed > 0 then
@@ -293,6 +321,11 @@ function FlightController.start()
 				return
 			end
 			if state.velocity.Y > 0 then
+				return
+			end
+			local generated = part:FindFirstAncestor("GeneratedWorld")
+			if generated == nil or part.Position.Y < 40 then
+				miss(root)
 				return
 			end
 			state.mode = "Grounded"

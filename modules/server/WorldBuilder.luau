@@ -60,6 +60,7 @@ local function buildBase(parent: Folder)
 	spawn.Enabled = true
 	spawn.Parent = base
 	base.PrimaryPart = platform
+	base.ModelStreamingMode = Enum.ModelStreamingMode.Persistent
 end
 
 local function buildIsland(parent: Folder, def: GameConfig.IslandDef, index: number)
@@ -72,10 +73,13 @@ local function buildIsland(parent: Folder, def: GameConfig.IslandDef, index: num
 	model.Parent = parent
 	part("Ground", Vector3.new(GameConfig.World.IslandRadius * 2, 4, GameConfig.World.IslandRadius * 2), CFrame.new(origin), Color3.fromRGB(110, 120, 90), model)
 	part("Nest", Vector3.new(10, 2, 10), CFrame.new(origin + Vector3.new(0, 4, 0)), Color3.fromRGB(180, 140, 60), model)
-	local beacon = part("Beacon", Vector3.new(6, 80, 6), CFrame.new(origin + Vector3.new(0, 44, 0)), Color3.fromRGB(255, 220, 40), model)
+	local beacon = part("Beacon", Vector3.new(4, 24, 4), CFrame.new(origin + Vector3.new(0, 16, 0)), Color3.fromRGB(255, 220, 40), model)
 	beacon.Material = Enum.Material.Neon
-	part("Guardian", Vector3.new(8, 16, 8), CFrame.new(origin + Vector3.new(20, 10, 0)), Color3.fromRGB(140, 50, 50), model)
+	beacon.CanCollide = false
+	local guardian = part("Guardian", Vector3.new(8, 16, 8), CFrame.new(origin + Vector3.new(20, 10, 0)), Color3.fromRGB(140, 50, 50), model)
+	guardian.CanCollide = false
 	islandsById[def.id] = model
+	model.ModelStreamingMode = Enum.ModelStreamingMode.Persistent
 	local nestPos = origin + Vector3.new(0, 4, 0)
 	local flat = Vector3.new(nestPos.X, 0, nestPos.Z).Magnitude
 	assert(flat <= def.rangeNeeded, def.id .. " nest is outside its rangeNeeded")
@@ -112,9 +116,60 @@ function WorldBuilder.build()
 			child:Destroy()
 		end
 	end
+	local baseplate = Workspace:FindFirstChild("Baseplate")
+	if baseplate then
+		baseplate:Destroy()
+	end
+end
+
+local function spawnPad(): SpawnLocation?
+	local world = Workspace:FindFirstChild(ROOT_NAME)
+	if world == nil then
+		return nil
+	end
+	local base = world:FindFirstChild("Base")
+	if base == nil then
+		return nil
+	end
+	local spawn = base:FindFirstChild("SpawnLocation")
+	if spawn and spawn:IsA("SpawnLocation") then
+		return spawn
+	end
+	return nil
+end
+
+local function seat(player: Player, character: Model)
+	local root = character:WaitForChild("HumanoidRootPart")
+	if not root:IsA("BasePart") then
+		return
+	end
+	local spawn = spawnPad()
+	local cf = if spawn then spawn.CFrame + Vector3.new(0, 4, 0) else CFrame.new(0, GameConfig.World.LaunchEdgeAltitude + 8, 0)
+	local function place()
+		if spawn then
+			player.RespawnLocation = spawn
+		end
+		root.AssemblyLinearVelocity = Vector3.zero
+		root.CFrame = cf
+	end
+	place()
+	task.defer(place)
+end
+
+local function hookPlayer(player: Player)
+	player.CharacterAdded:Connect(function(character)
+		seat(player, character)
+	end)
+	if player.Character then
+		seat(player, player.Character)
+	end
 end
 
 function WorldBuilder.start()
+	for _, player in Players:GetPlayers() do
+		hookPlayer(player)
+	end
+	Players.PlayerAdded:Connect(hookPlayer)
 	Players.PlayerRemoving:Connect(function(player)
 		basesByPlayer[player] = nil
 	end)

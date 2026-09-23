@@ -85,8 +85,9 @@ local function acceptClaim(player: Player, payload: any)
 	local dt = math.clamp(nowClock - previousAt, GameConfig.Flight.MaxDt, maxWindow)
 	local allowed = GameConfig.terminalSpeed(carrying[player] == true) * (dt + GameConfig.Flight.MaxDt)
 	local corrected = claimed
-	if (claimed - previous).Magnitude > allowed then
-		corrected = previous
+	local delta = claimed - previous
+	if delta.Magnitude > allowed and delta.Magnitude > 0 then
+		corrected = previous + delta.Unit * allowed
 	end
 	local flat = Vector3.new(corrected.X, 0, corrected.Z)
 	local range = FlightService.getRange(player)
