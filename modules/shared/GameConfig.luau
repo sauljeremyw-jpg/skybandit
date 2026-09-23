@@ -60,7 +60,7 @@ GameConfig.Store = {
 GameConfig.Net = { MaxPayloadBytes = 4_096, MaxPayloadEntries = 200, DefaultLimitPerMinute = 60, DropStrikeWindowSeconds = 10, DropStrikeThreshold = 10 }
 GameConfig.Flight = { LiftK = 0.012, LiftCap = 200, DragK = 0.004, DiveExchangeRate = 1.2, StallAirspeed = 40, CorrectionLerpSeconds = 0.2, MaxDt = 0.05, SnapshotHz = 10 }
 GameConfig.Intercept = { Radius = 25, PairCooldownSeconds = 30, NewPlayerImmunitySeconds = 30 * 60 }
-GameConfig.World = { BaseSpacing = 600, BasePlatformSize = Vector3.new(90, 4, 90), LaunchEdgeAltitude = 120, IslandRadius = 80, IslandDistanceFactor = 0.6, IslandAngleStepDegrees = 37, NestGrabRadius = 36, NestRespawnSeconds = 15 }
+GameConfig.World = { BaseSpacing = 600, BasePlatformSize = Vector3.new(90, 4, 90), LaunchEdgeAltitude = 120, IslandRadius = 80, IslandDistanceFactor = 0.6, IslandAngleStepDegrees = 37, NestGrabRadius = 80, NestRespawnSeconds = 15 }
 function GameConfig.terminalSpeed(carrying: boolean): number
 	local speed = math.sqrt(GameConfig.Flight.LiftCap / GameConfig.Flight.DragK)
 	if carrying then
@@ -106,7 +106,7 @@ function GameConfig.islandWorldPosition(id: string, sliceIndex: number?): Vector
 		return nil
 	end
 	local distance = island.rangeNeeded * GameConfig.World.IslandDistanceFactor
-	local angle = math.rad(GameConfig.World.IslandAngleStepDegrees * index)
+	local angle = if index == 1 then math.rad(90) else math.rad(GameConfig.World.IslandAngleStepDegrees * index)
 	local drop = math.min(distance * 0.18, GameConfig.World.LaunchEdgeAltitude * 0.6)
 	local altitude = GameConfig.World.LaunchEdgeAltitude - drop
 	return Vector3.new(math.cos(angle) * distance, altitude, math.sin(angle) * distance)

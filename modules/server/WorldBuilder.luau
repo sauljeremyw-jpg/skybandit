@@ -70,6 +70,8 @@ local function buildIsland(parent: Folder, def: GameConfig.IslandDef, index: num
 	model.Parent = parent
 	part("Ground", Vector3.new(GameConfig.World.IslandRadius * 2, 4, GameConfig.World.IslandRadius * 2), CFrame.new(origin), Color3.fromRGB(110, 120, 90), model)
 	part("Nest", Vector3.new(10, 2, 10), CFrame.new(origin + Vector3.new(0, 4, 0)), Color3.fromRGB(180, 140, 60), model)
+	local beacon = part("Beacon", Vector3.new(6, 80, 6), CFrame.new(origin + Vector3.new(0, 44, 0)), Color3.fromRGB(255, 220, 40), model)
+	beacon.Material = Enum.Material.Neon
 	part("Guardian", Vector3.new(8, 16, 8), CFrame.new(origin + Vector3.new(20, 10, 0)), Color3.fromRGB(140, 50, 50), model)
 	islandsById[def.id] = model
 	local nestPos = origin + Vector3.new(0, 4, 0)

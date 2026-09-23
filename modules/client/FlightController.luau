@@ -131,6 +131,18 @@ local function step(dt: number)
 			end
 			state.position += state.velocity * dt
 		end
+		local meadow = GameConfig.islandWorldPosition("meadowrock")
+		if meadow and aircraftTier == 1 then
+			local toward = Vector3.new(meadow.X - state.position.X, 0, meadow.Z - state.position.Z)
+			if toward.Magnitude > 20 then
+				local horiz = Vector3.new(state.velocity.X, 0, state.velocity.Z)
+				local speed = math.max(horiz.Magnitude, 70)
+				local aimed = toward.Unit * speed
+				local blend = math.clamp(dt * 3, 0, 0.45)
+				horiz = horiz:Lerp(aimed, blend)
+				state.velocity = Vector3.new(horiz.X, state.velocity.Y, horiz.Z)
+			end
+		end
 	end
 	state.altitude = state.position.Y
 	if root and flying() and not correcting and state.t >= launchedUntil and state.velocity.Y <= 8 then
@@ -188,8 +200,12 @@ local function launch()
 	end
 	state.mode = "Launched"
 	state.position = root.Position
-	state.velocity = look.Unit * GameConfig.Flight.StallAirspeed
-	launchedUntil = state.t + GameConfig.Flight.MaxDt * GameConfig.Flight.SnapshotHz
+	local horizontal = Vector3.new(look.X, 0, look.Z)
+	if horizontal.Magnitude < 0.25 then
+		horizontal = Vector3.zAxis
+	end
+	state.velocity = horizontal.Unit * 90 + Vector3.new(0, -30, 0)
+	launchedUntil = state.t + 0.4
 end
 
 function FlightController.start()
