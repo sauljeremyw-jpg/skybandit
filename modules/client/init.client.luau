@@ -2,8 +2,8 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Net = require(Shared:WaitForChild("Net"))
-local FlightController = require(script.Parent.FlightController)
-local Hud = require(script.Parent.Hud)
+local FlightController = require(script.FlightController)
+local Hud = require(script.Hud)
 
 Net.start()
 FlightController.start()
