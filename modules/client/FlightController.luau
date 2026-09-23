@@ -133,6 +133,26 @@ local function step(dt: number)
 		end
 	end
 	state.altitude = state.position.Y
+	if root and flying() and not correcting and state.t >= launchedUntil and state.velocity.Y <= 8 then
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Exclude
+		local character = root.Parent
+		if character then
+			params.FilterDescendantsInstances = { character }
+		end
+		local hit = workspace:Raycast(state.position, Vector3.new(0, -12, 0), params)
+		if hit and state.position.Y - hit.Position.Y < 6 then
+			state.mode = "Grounded"
+			state.velocity = Vector3.zero
+			state.position = Vector3.new(state.position.X, hit.Position.Y + 3, state.position.Z)
+			root.AssemblyLinearVelocity = Vector3.zero
+			root.CFrame = CFrame.new(state.position)
+			local humanoid = humanoidOf(root)
+			if humanoid then
+				humanoid.PlatformStand = false
+			end
+		end
+	end
 	if root and (correcting or flying()) then
 		local humanoid = humanoidOf(root)
 		if humanoid and flying() then
@@ -191,6 +211,17 @@ function FlightController.start()
 			carrying = payload.carrying
 		end
 		if typeof(payload.position) == "Vector3" then
+			local pulled = payload.position - state.position
+			if pulled.Magnitude > 1 then
+				local radial = Vector3.new(state.position.X, 0, state.position.Z)
+				if radial.Magnitude > 1 then
+					local outward = radial.Unit
+					local outwardSpeed = Vector3.new(state.velocity.X, 0, state.velocity.Z):Dot(outward)
+					if outwardSpeed > 0 then
+						state.velocity -= outward * outwardSpeed
+					end
+				end
+			end
 			correctFrom = state.position
 			correctTo = payload.position
 			correctElapsed = 0
