@@ -1,19 +1,24 @@
 --!strict
+local Workspace = game:GetService("Workspace")
+Workspace.StreamingEnabled = false
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameConfig = require(Shared:WaitForChild("GameConfig"))
 local Types = require(Shared:WaitForChild("Types"))
 local Net = require(Shared:WaitForChild("Net"))
 local WorldBuilder = require(script.WorldBuilder)
+
+Net.start()
+WorldBuilder.build()
+WorldBuilder.start()
+
 local PlayerData = require(script.PlayerData)
 local FlightService = require(script.FlightService)
 local EconomyService = require(script.EconomyService)
 local PetService = require(script.PetService)
 local HeistService = require(script.HeistService)
 
-Net.start()
-WorldBuilder.build()
-WorldBuilder.start()
 PlayerData.start()
 FlightService.start()
 EconomyService.start()

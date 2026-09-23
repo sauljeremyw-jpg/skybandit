@@ -5,12 +5,16 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameConfig = require(Shared:WaitForChild("GameConfig"))
 local Net = require(Shared:WaitForChild("Net"))
-local FlightController = require(script.Parent.FlightController)
 
 local Hud = {}
+local statusLabel: TextLabel? = nil
+
+local function flight()
+	return require(script.Parent.FlightController)
+end
 
 local function nearestIsland(): string?
-	local pos = FlightController.getState().position
+	local pos = flight().getState().position
 	local bestId: string? = nil
 	local best = math.huge
 	for _, island in GameConfig.Islands do
@@ -46,6 +50,7 @@ function Hud.start()
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "SkyBanditHUD"
 	gui.ResetOnSpawn = false
+	gui.DisplayOrder = 20
 	gui.Parent = playerGui
 
 	local label = Instance.new("TextLabel")
@@ -69,6 +74,7 @@ function Hud.start()
 	status.TextSize = 18
 	status.Text = ""
 	status.Parent = gui
+	statusLabel = status
 
 	local coins = "?"
 	local tier = "?"
@@ -92,10 +98,10 @@ function Hud.start()
 	Net.on("replica:carry", function(payload)
 		if typeof(payload) == "table" then
 			carry = string.format("%s  (%s)", tostring(payload.islandId), tostring(payload.bounty))
-			FlightController.setCarrying(true)
+			flight().setCarrying(true)
 		else
 			carry = "empty"
-			FlightController.setCarrying(false)
+			flight().setCarrying(false)
 		end
 		redraw()
 	end)
@@ -128,6 +134,13 @@ function Hud.start()
 	button(gui, "Aircraft", "Buy next aircraft", 1).MouseButton1Click:Connect(function()
 		show(Net.invoke("shop:aircraft", {}))
 	end)
+end
+
+function Hud.fail(message: string)
+	if statusLabel then
+		statusLabel.Text = message
+		statusLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+	end
 end
 
 return Hud

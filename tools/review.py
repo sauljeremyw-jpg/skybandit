@@ -40,7 +40,7 @@ ALLOWED = {
     },
     "modules/client/FlightController.luau": {"Types", "GameConfig", "Net"},
     "modules/client/Hud.luau": {"GameConfig", "Net", "FlightController"},
-    "modules/client/init.client.luau": {"Net", "FlightController", "Hud"},
+    "modules/client/init.client.luau": {"Net", "Hud"},
 }
 
 REQUIRED_NUMBERS = {

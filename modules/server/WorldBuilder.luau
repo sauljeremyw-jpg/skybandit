@@ -49,7 +49,15 @@ local function buildBase(parent: Folder)
 	part("WallN", Vector3.new(size.X, 12, 2), CFrame.new(0, altitude + 8, -size.Z / 2), Color3.fromRGB(70, 70, 70), base)
 	part("WallS", Vector3.new(size.X, 12, 2), CFrame.new(0, altitude + 8, size.Z / 2), Color3.fromRGB(70, 70, 70), base)
 	part("WallE", Vector3.new(2, 12, size.Z), CFrame.new(size.X / 2, altitude + 8, 0), Color3.fromRGB(70, 70, 70), base)
-	part("JumpPad", Vector3.new(16, 1, 16), CFrame.new(0, altitude + size.Y / 2 + 0.5, size.Z / 2 - 12), Color3.fromRGB(40, 140, 80), base)
+	local pad = part("JumpPad", Vector3.new(16, 2, 16), CFrame.new(0, altitude + size.Y / 2 + 1, size.Z / 2 - 12), Color3.fromRGB(40, 200, 80), base)
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "LaunchPrompt"
+	prompt.ActionText = "Launch"
+	prompt.ObjectText = "Green pad"
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = 18
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = pad
 	local spawn = Instance.new("SpawnLocation")
 	spawn.Name = "SpawnLocation"
 	spawn.Size = Vector3.new(8, 1, 8)
@@ -94,9 +102,15 @@ local function assertAnchored(instance: Instance)
 end
 
 function WorldBuilder.build()
+	Workspace.StreamingEnabled = false
 	local existing = Workspace:FindFirstChild(ROOT_NAME)
 	if existing then
 		existing:Destroy()
+	end
+	for _, child in Workspace:GetChildren() do
+		if child:IsA("BasePart") then
+			child:Destroy()
+		end
 	end
 	islandsById = {}
 	local folder = Instance.new("Folder")
@@ -120,8 +134,8 @@ function WorldBuilder.build()
 	if baseplate then
 		baseplate:Destroy()
 	end
-	local lava = part("Lava", Vector3.new(8000, 8, 8000), CFrame.new(0, -4, 0), Color3.fromRGB(255, 70, 10), folder)
-	lava.Material = Enum.Material.CrackedLava
+	local lava = part("Lava", Vector3.new(12000, 6, 12000), CFrame.new(0, 1, 0), Color3.fromRGB(255, 60, 0), folder)
+	lava.Material = Enum.Material.Neon
 	lava.Touched:Connect(function(hit)
 		local character = hit:FindFirstAncestorOfClass("Model")
 		if character == nil then
@@ -165,7 +179,19 @@ local function seat(player: Player, character: Model)
 		root.CFrame = cf
 	end
 	place()
-	task.defer(place)
+	task.spawn(function()
+		for _ = 1, 40 do
+			if root.Parent == nil then
+				return
+			end
+			if root.Position.Y > 70 then
+				return
+			end
+			root.AssemblyLinearVelocity = Vector3.zero
+			root.CFrame = cf
+			task.wait(0.1)
+		end
+	end)
 end
 
 local function hookPlayer(player: Player)

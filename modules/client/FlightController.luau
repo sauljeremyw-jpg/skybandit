@@ -202,11 +202,15 @@ local function step(dt: number)
 			end
 			local hit = workspace:Raycast(state.position, Vector3.new(0, -12, 0), params)
 			if hit and state.position.Y - hit.Position.Y < 6 then
-				local safe = hit.Instance:FindFirstAncestor("GeneratedWorld") ~= nil and hit.Position.Y >= 40
-				if not safe then
-					miss(root)
-				else
-					landOn(root, Vector3.new(state.position.X, hit.Position.Y + 3, state.position.Z))
+				local name = hit.Instance.Name
+				local basePiece = name == "Platform" or name == "JumpPad" or name == "SpawnLocation" or name == "WallN" or name == "WallS" or name == "WallE"
+				if not basePiece then
+					local safe = hit.Instance:FindFirstAncestor("GeneratedWorld") ~= nil and hit.Position.Y >= 40
+					if not safe then
+						miss(root)
+					else
+						landOn(root, Vector3.new(state.position.X, hit.Position.Y + 3, state.position.Z))
+					end
 				end
 			end
 		end
@@ -251,7 +255,7 @@ local function launch()
 		horizontal = Vector3.zAxis
 	end
 	state.velocity = horizontal.Unit * 90 + Vector3.new(0, -30, 0)
-	launchedUntil = state.t + 0.4
+	launchedUntil = state.t + 1.2
 end
 
 function FlightController.start()
@@ -301,6 +305,12 @@ function FlightController.start()
 					launch()
 				end
 			end)
+			local prompt = pad:FindFirstChild("LaunchPrompt")
+			if prompt and prompt:IsA("ProximityPrompt") then
+				prompt.Triggered:Connect(function()
+					launch()
+				end)
+			end
 		end
 	end)
 	RunService.Heartbeat:Connect(function(dt)
