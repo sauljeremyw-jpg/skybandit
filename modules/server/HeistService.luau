@@ -130,11 +130,11 @@ local function tryDeliver(player: Player, _payload: any): (boolean, string?)
 		warn(string.format("[Heist] reject instant deliver %s (teleport exploit)", player.Name))
 		return false, "too_fast"
 	end
+	PetService.rollAndGrant(player, egg.islandId, egg.rarityRollSeed)
 	local ok = select(1, EconomyService.grantCoins(player, egg.bounty, "deliver"))
 	if not ok then
 		return false, "grant_failed"
 	end
-	PetService.rollAndGrant(player, egg.islandId, egg.rarityRollSeed)
 	local save = PlayerData.get(player)
 	if save then
 		save.stats.eggsDelivered += 1
@@ -169,11 +169,13 @@ function HeistService.start()
 		return
 	end
 	started = true
-	Net.handleEvent("heist:grab", function(player, payload)
-		tryGrab(player, payload)
+	Net.handleFunction("heist:grab", function(player, payload)
+		local ok, err = tryGrab(player, payload)
+		return { ok = ok, err = err }
 	end)
-	Net.handleEvent("heist:deliver", function(player, payload)
-		tryDeliver(player, payload)
+	Net.handleFunction("heist:deliver", function(player, payload)
+		local ok, err = tryDeliver(player, payload)
+		return { ok = ok, err = err }
 	end)
 	Players.PlayerRemoving:Connect(function(player)
 		if carried[player] then

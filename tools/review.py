@@ -39,7 +39,8 @@ ALLOWED = {
         "Types",
     },
     "modules/client/FlightController.luau": {"Types", "GameConfig", "Net"},
-    "modules/client/init.client.luau": {"Net", "FlightController"},
+    "modules/client/Hud.luau": {"GameConfig", "Net", "FlightController"},
+    "modules/client/init.client.luau": {"Net", "FlightController", "Hud"},
 }
 
 REQUIRED_NUMBERS = {
@@ -126,6 +127,7 @@ def main() -> int:
         "modules/server/EconomyService.luau",
         "modules/server/PetService.luau",
         "modules/client/FlightController.luau",
+        "modules/client/Hud.luau",
         "modules/server/init.server.luau",
         "modules/client/init.client.luau",
     ]

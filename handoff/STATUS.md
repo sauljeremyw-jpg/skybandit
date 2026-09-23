@@ -10,7 +10,8 @@ Built in this chat. No Claude credits and no SkyBandit bots used.
 - Touching JumpPad launches. Glide uses the config lift, drag, and dive exchange. Carrying no longer multiplies speed every frame.
 - EconomyService soft-caps grants toward `IncomeSoftCapFactor` (full payout at 0 coins, approaching 0.35 as coins pass the tier-4 aircraft cost). x2 Coins applies before the cap.
 - PetService rolls rarity, respects perch cap, and pays `PetBaseIncome` each second through EconomyService.
-- HUD snapshot updates when coins change.
+- Phone-sized Grab, Deliver, and Buy-next-aircraft buttons. Server still rejects a bad grab or a short run.
+- Aircraft purchases spend coins and raise range. Perch upgrades exist on the server; the button is not on the HUD yet.
 
 ## Still not launch
 

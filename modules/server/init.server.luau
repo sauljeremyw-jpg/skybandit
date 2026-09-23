@@ -44,6 +44,23 @@ PlayerData.onLoaded(function(player, save)
 	})
 end)
 
+Net.handleFunction("shop:aircraft", function(player)
+	local ok, err = EconomyService.buyNextAircraft(player)
+	if ok then
+		local save = PlayerData.get(player)
+		if save then
+			pushFlight(player, save)
+		end
+	end
+	return { ok = ok, err = err }
+end, 20)
+
+Net.handleFunction("shop:upgrade", function(player, payload)
+	local name = if typeof(payload) == "table" then payload.name else nil
+	local ok, err = EconomyService.buyUpgrade(player, name)
+	return { ok = ok, err = err }
+end, 20)
+
 Net.handleFunction("debug:ping", function(_player, _payload)
 	return { ok = true, serverTime = os.time() }
 end, 30)
