@@ -120,6 +120,18 @@ function WorldBuilder.build()
 	if baseplate then
 		baseplate:Destroy()
 	end
+	local lava = part("Lava", Vector3.new(8000, 8, 8000), CFrame.new(0, -4, 0), Color3.fromRGB(255, 70, 10), folder)
+	lava.Material = Enum.Material.CrackedLava
+	lava.Touched:Connect(function(hit)
+		local character = hit:FindFirstAncestorOfClass("Model")
+		if character == nil then
+			return
+		end
+		local humanoid = character:FindFirstChildOfClass("Humanoid")
+		if humanoid and humanoid.Health > 0 then
+			humanoid.Health = 0
+		end
+	end)
 end
 
 local function spawnPad(): SpawnLocation?
