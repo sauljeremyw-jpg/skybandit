@@ -102,18 +102,22 @@ end
 
 -- Mirrors islandUnder for the home Base platform so right-click look-around
 -- cannot trap the player hovering above the grey platform.
+-- Matches islandUnder pattern: speed-gated time-only force-land, no damp,
+-- no altitude trigger.  The altitude trigger was firing immediately after
+-- any ring-strip launch that kept the player inside the 90-stud footprint
+-- at launchedUntil expiry (e.g. east strip toward Meadowrock: X=86, Z≈83,
+-- both ≤ 90 → altitude Y≈163 ≤ platformTop+12=174 → force-land on Base).
 local function baseUnder(dt: number): Vector3?
 	local half = GameConfig.World.BasePlatformSize.X / 2
 	local halfZ = GameConfig.World.BasePlatformSize.Z / 2
 	if math.abs(state.position.X) <= half and math.abs(state.position.Z) <= halfZ then
-		timeOverBase += dt
 		local platformTop = GameConfig.World.LaunchEdgeAltitude + GameConfig.World.BasePlatformSize.Y / 2
 		local landY = platformTop + GameConfig.World.CharacterRootHeight
-		local vy = math.min(state.velocity.Y, -45)
-		state.velocity = Vector3.new(state.velocity.X * 0.8, vy, state.velocity.Z * 0.8)
-		if state.position.Y <= platformTop + GameConfig.World.IslandLandRadius
-			or timeOverBase >= GameConfig.World.BaseLandSeconds
-		then
+		local horizSpeed = Vector3.new(state.velocity.X, 0, state.velocity.Z).Magnitude
+		if horizSpeed < GameConfig.World.IslandLandSpeedThreshold then
+			timeOverBase += dt
+		end
+		if timeOverBase >= GameConfig.World.BaseLandSeconds then
 			return Vector3.new(state.position.X, landY, state.position.Z)
 		end
 		return nil

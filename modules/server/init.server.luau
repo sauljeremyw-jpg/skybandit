@@ -84,8 +84,10 @@ Net.handleFunction("shop:upgrade", function(player, payload)
 end, 20)
 
 -- Client calls this immediately after Hud.start() to get a guaranteed-fresh
--- snapshot even if the PlayerData.onLoaded snapshot fired before the client
--- registered its save:snapshot listener (race with Mock / fast DataStore).
+-- snapshot even if the PlayerData.onLoaded / pushFlight events fired before
+-- the client registered its listeners (race with Mock / fast DataStore).
+-- pushFlight is ALSO sent so FlightController.aircraftTier is correct and
+-- the tier-1 Meadowrock magnet does not override tier-2 launches.
 Net.handleFunction("shop:requestSnapshot", function(player)
 	local save = PlayerData.get(player)
 	if save ~= nil then
@@ -95,6 +97,7 @@ Net.handleFunction("shop:requestSnapshot", function(player)
 			petCount = #save.pets,
 			perchSlotsLevel = save.upgrades.perchSlots,
 		})
+		pushFlight(player, save)
 	end
 	return { ok = true }
 end, 5)
