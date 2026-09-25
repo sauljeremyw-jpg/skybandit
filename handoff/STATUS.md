@@ -29,6 +29,33 @@ Second Studio playtest hit two cascading failures:
 
 After these two fixes, `WorldBuilder.build()` completes, `GeneratedWorld` appears in Workspace, the client `WaitForChild` resolves, and flight:state events process without flooding the log.
 
+## Hotfix — 2026-09-25 (round 5): CharacterAutoLoads + JumpPad grace gate
+
+Second spawn-loop iteration. After round 4's ForceField/TakeDamage fix, Jeremy
+landed on lava WITH ForceField alive — then died when he stepped. Root causes:
+
+1. `CharacterAutoLoads = true` (default) fires character auto-load as soon as
+   `PlayerAdded` resolves — BEFORE `WorldBuilder.build()` creates the SpawnLocation.
+   Character spawns at Roblox's default Y≈5, which is inside the lava (top Y=4).
+   SpawnLocation.Duration=5 kept him alive on lava but TakeDamage fired the instant
+   he moved and the ForceField ended.
+
+2. JumpPad.Touched fires on any contact, including when the character
+   is placed on Base by seat(). launch() gives velocity.Y = -30, launching
+   the character downward off Base into lava.
+
+**Fixes:**
+- `init.server.luau`: sets `player.CharacterAutoLoads = false` for all current
+  players AND via PlayerAdded — BEFORE Net.start / WorldBuilder. After all services
+  are running and RespawnLocation is armed, calls `player:LoadCharacter()` for all
+  current players and connects a second PlayerAdded handler for future joiners.
+- `WorldBuilder.seat()`: first thing it does is `player.CharacterAutoLoads = true`
+  so future deaths auto-respawn at the armed SpawnLocation.
+- `GameConfig.World.SpawnGraceSeconds = 3`: tunable grace window.
+- `FlightController`: `spawnGraceUntil = os.clock() + SpawnGraceSeconds` set in
+  CharacterAdded. JumpPad.Touched and LaunchPrompt.Triggered both check
+  `os.clock() < spawnGraceUntil` and bail during the grace window.
+
 ## Hotfix — 2026-09-25 (round 4): spawn / lava death loop
 
 **Root cause chain:**

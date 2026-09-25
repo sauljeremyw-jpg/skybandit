@@ -29,6 +29,7 @@ local snapshotAcc = 0
 local started = false
 
 local launchedUntil = 0
+local spawnGraceUntil = 0
 
 local function characterRoot(): BasePart?
 	local character = Players.LocalPlayer.Character
@@ -325,12 +326,20 @@ function FlightController.start()
 			pad.Touched:Connect(function(hit)
 				local character = Players.LocalPlayer.Character
 				if character and hit:IsDescendantOf(character) then
+					-- Ignore touches during spawn grace so a freshly seated character
+					-- cannot be yeeted off Base before they are stable.
+					if os.clock() < spawnGraceUntil then
+						return
+					end
 					launch()
 				end
 			end)
 			local prompt = pad:FindFirstChild("LaunchPrompt")
 			if prompt and prompt:IsA("ProximityPrompt") then
 				prompt.Triggered:Connect(function()
+					if os.clock() < spawnGraceUntil then
+						return
+					end
 					launch()
 				end)
 			end
@@ -364,6 +373,9 @@ function FlightController.start()
 	Players.LocalPlayer.CharacterAdded:Connect(function(character)
 		state.mode = "Grounded"
 		state.velocity = Vector3.zero
+		-- Grace window: ignore JumpPad touch immediately after spawn so the
+		-- character cannot be auto-launched off Base before they are stable.
+		spawnGraceUntil = os.clock() + GameConfig.World.SpawnGraceSeconds
 		local root = character:WaitForChild("HumanoidRootPart")
 		if not root:IsA("BasePart") then
 			return

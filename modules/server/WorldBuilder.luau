@@ -181,6 +181,10 @@ local function spawnPad(): SpawnLocation?
 end
 
 local function seat(player: Player, character: Model)
+	-- CharacterAutoLoads was disabled at boot so the initial spawn could not race
+	-- the world build.  Re-enable it now: the world is ready and RespawnLocation
+	-- is armed, so any future death auto-respawns at the correct altitude.
+	player.CharacterAutoLoads = true
 	-- ForceField must exist BEFORE WaitForChild yields so TakeDamage lava
 	-- cannot kill the character during the replication gap between CharacterAdded
 	-- and the first CFrame teleport.

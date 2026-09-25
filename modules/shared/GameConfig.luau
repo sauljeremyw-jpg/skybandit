@@ -60,7 +60,7 @@ GameConfig.Store = {
 GameConfig.Net = { MaxPayloadBytes = 4_096, MaxPayloadEntries = 200, DefaultLimitPerMinute = 60, DropStrikeWindowSeconds = 10, DropStrikeThreshold = 10, FlightStateLimitPerMinute = 720 }
 GameConfig.Flight = { LiftK = 0.012, LiftCap = 200, DragK = 0.004, DiveExchangeRate = 1.2, StallAirspeed = 40, CorrectionLerpSeconds = 0.2, MaxDt = 0.05, SnapshotHz = 10 }
 GameConfig.Intercept = { Radius = 25, PairCooldownSeconds = 30, NewPlayerImmunitySeconds = 30 * 60 }
-GameConfig.World = { BaseSpacing = 600, BasePlatformSize = Vector3.new(90, 4, 90), LaunchEdgeAltitude = 120, IslandRadius = 80, IslandDistanceFactor = 0.6, IslandAngleStepDegrees = 37, NestGrabRadius = 80, NestRespawnSeconds = 15, HomePad = { ImpulseH = 90, ImpulseV = 60, LaunchSeconds = 1.5 } }
+GameConfig.World = { BaseSpacing = 600, BasePlatformSize = Vector3.new(90, 4, 90), LaunchEdgeAltitude = 120, IslandRadius = 80, IslandDistanceFactor = 0.6, IslandAngleStepDegrees = 37, NestGrabRadius = 80, NestRespawnSeconds = 15, SpawnGraceSeconds = 3, HomePad = { ImpulseH = 90, ImpulseV = 60, LaunchSeconds = 1.5 } }
 function GameConfig.terminalSpeed(carrying: boolean): number
 	local speed = math.sqrt(GameConfig.Flight.LiftCap / GameConfig.Flight.DragK)
 	if carrying then
