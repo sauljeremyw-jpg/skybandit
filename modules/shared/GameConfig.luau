@@ -57,7 +57,7 @@ GameConfig.Store = {
 	passes = { x2Coins = { id = 0, price = 399, label = "x2 Coins" }, fastHatch = { id = 0, price = 349, label = "Fast Hatch" }, bigVault = { id = 0, price = 299, label = "Big Vault" }, skyCrew = { id = 0, price = 599, label = "Sky Crew" } },
 	products = { luckyFeather = { id = 0, price = 99, label = "Lucky Feather", hours = 24, luckMult = 2 }, coinsSmall = { id = 0, price = 99, label = "Pouch of Coins" }, coinsMedium = { id = 0, price = 399, label = "Sack of Coins" }, coinsLarge = { id = 0, price = 999, label = "Vault of Coins" } },
 }
-GameConfig.Net = { MaxPayloadBytes = 4_096, MaxPayloadEntries = 200, DefaultLimitPerMinute = 60, DropStrikeWindowSeconds = 10, DropStrikeThreshold = 10 }
+GameConfig.Net = { MaxPayloadBytes = 4_096, MaxPayloadEntries = 200, DefaultLimitPerMinute = 60, DropStrikeWindowSeconds = 10, DropStrikeThreshold = 10, FlightStateLimitPerMinute = 720 }
 GameConfig.Flight = { LiftK = 0.012, LiftCap = 200, DragK = 0.004, DiveExchangeRate = 1.2, StallAirspeed = 40, CorrectionLerpSeconds = 0.2, MaxDt = 0.05, SnapshotHz = 10 }
 GameConfig.Intercept = { Radius = 25, PairCooldownSeconds = 30, NewPlayerImmunitySeconds = 30 * 60 }
 GameConfig.World = { BaseSpacing = 600, BasePlatformSize = Vector3.new(90, 4, 90), LaunchEdgeAltitude = 120, IslandRadius = 80, IslandDistanceFactor = 0.6, IslandAngleStepDegrees = 37, NestGrabRadius = 80, NestRespawnSeconds = 15 }

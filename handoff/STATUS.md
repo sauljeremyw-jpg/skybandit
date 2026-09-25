@@ -15,9 +15,19 @@ Built in this chat. No Claude credits and no SkyBandit bots used.
 - **Perch upgrade HUD button landed.** Tap "Upgrade perch" → fires `shop:upgrade {name="perchSlots"}` → EconomyService.buyUpgrade validates level cap, coin balance, and unknown-name; returns `{ok, err}` displayed on the status label (fail-closed, no silent no-ops). Info label now shows current perch level and cost of next upgrade.
 - `save:snapshot` now carries `perchSlotsLevel` so the HUD always reflects the server-authoritative level.
 
-## Hotfix — 2026-09-25
+## Hotfix — 2026-09-25 (round 1)
 
-Studio boot was blocked by two `Workspace.StreamingEnabled = false` writes in `init.server.luau` (line 3) and `WorldBuilder.luau` (`WorldBuilder.build()`). Scripts lack the Plugin capability required to write that property at runtime; Rojo's `default.project.json` already sets it via `$properties`, which is the correct place. Both writes removed. The unused `local Workspace = game:GetService("Workspace")` import in `init.server.luau` was also dropped. WorldBuilder retains its own `Workspace` import for part creation. Boot should now reach `Net.start()` and `WorldBuilder.build()` without capability errors.
+Studio boot was blocked by two `Workspace.StreamingEnabled = false` writes in `init.server.luau` (line 3) and `WorldBuilder.luau` (`WorldBuilder.build()`). Scripts lack the Plugin capability required to write that property at runtime; Rojo's `default.project.json` already sets it via `$properties`, which is the correct place. Both writes removed. The unused `local Workspace = game:GetService("Workspace")` import in `init.server.luau` was also dropped. WorldBuilder retains its own `Workspace` import for part creation.
+
+## Hotfix — 2026-09-25 (round 2)
+
+Second Studio playtest hit two cascading failures:
+
+**WorldBuilder Terrain crash** — `WorldBuilder.build()` loops over `Workspace:GetChildren()` and destroys any `BasePart`. `Terrain` is a `BasePart` subclass in Roblox; destroying it raises `Cannot Destroy() Terrain`. This killed `init.server.luau` before any service could start, including `FlightService`. Fixed by adding `and not child:IsA("Terrain")` to the guard.
+
+**flight:state Net flood** — Because `init.server.luau` died before `FlightService.start()`, the `flight:state` event handler was never registered with its intended rate limit; only the default 60/min applied. The client sends at `SnapshotHz = 10 Hz = 600/min`, so the token bucket drained in ~6 seconds and every subsequent event logged a drop + strike. Fixed by adding `FlightStateLimitPerMinute = 720` to `GameConfig.Net` and passing it to `Net.handleEvent("flight:state", …)` in `FlightService.start()`.
+
+After these two fixes, `WorldBuilder.build()` completes, `GeneratedWorld` appears in Workspace, the client `WaitForChild` resolves, and flight:state events process without flooding the log.
 
 ## Studio playtest checklist
 

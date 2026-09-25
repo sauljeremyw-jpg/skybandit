@@ -107,7 +107,8 @@ function WorldBuilder.build()
 		existing:Destroy()
 	end
 	for _, child in Workspace:GetChildren() do
-		if child:IsA("BasePart") then
+		-- Terrain is a BasePart subclass; Roblox forbids Destroy() on it.
+		if child:IsA("BasePart") and not child:IsA("Terrain") then
 			child:Destroy()
 		end
 	end
