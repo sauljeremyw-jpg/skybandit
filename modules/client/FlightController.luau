@@ -259,8 +259,6 @@ local function step(dt: number)
 				local ray = Vector3.new(0, -GameConfig.Flight.LandRayLength, 0)
 				local hit = workspace:Raycast(state.position, ray, params)
 				if hit and state.position.Y - hit.Position.Y < GameConfig.Flight.LandRayTrigger then
-					-- Any GeneratedWorld surface at safe altitude is a valid landing.
-					-- The old basePiece gate was silently skipping Platform, causing hover.
 					if hit.Instance:FindFirstAncestor("GeneratedWorld") ~= nil and hit.Position.Y >= 40 then
 						landOn(root, Vector3.new(state.position.X,
 							hit.Position.Y + GameConfig.World.CharacterRootHeight,
