@@ -29,6 +29,16 @@ Second Studio playtest hit two cascading failures:
 
 After these two fixes, `WorldBuilder.build()` completes, `GeneratedWorld` appears in Workspace, the client `WaitForChild` resolves, and flight:state events process without flooding the log.
 
+## Hotfix — 2026-09-25 (round 3): HomePad spring + carry magnet gate
+
+Meadowrock (and all in-slice islands) sit below Base altitude by design. After Grab the player could not glide home. Fixed by adding an **orange spring pad ("HomePad")** to every in-slice island in `WorldBuilder.buildIsland()`. Touching or prompting it fires `launchHome()` in FlightController, which fires the player toward the world origin (Base) at ImpulseH=90 horizontal + ImpulseV=60 upward — enough to clear the altitude deficit while carrying.
+
+The tier-1 Meadowrock outbound velocity magnet was also gated on `not carrying`: it only applies when flying toward the island (no egg), preventing it from fighting the homebound return after a spring launch.
+
+Config: `GameConfig.World.HomePad = { ImpulseH = 90, ImpulseV = 60, LaunchSeconds = 1.5 }`.
+
+**Finding the HomePad in Studio:** orange Neon `BasePart` named "HomePad", 12×2×12 studs, 20 studs west of each island's nest. Has a "Return to Base / Spring Pad" ProximityPrompt.
+
 ## Studio playtest checklist
 
 1. Open Roblox Studio → File → Open From File → `default.project.json` (requires Rojo plugin ≥ 7).

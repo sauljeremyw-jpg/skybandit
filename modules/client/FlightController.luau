@@ -174,7 +174,9 @@ local function step(dt: number)
 			state.position += state.velocity * dt
 		end
 		local meadow = GameConfig.islandWorldPosition("meadowrock")
-		if meadow and aircraftTier == 1 then
+		-- Suppress the outbound magnet when carrying: the player has the egg and
+		-- needs to fly home; pulling back toward Meadowrock would fight the return.
+		if meadow and aircraftTier == 1 and not carrying then
 			local toward = Vector3.new(meadow.X - state.position.X, 0, meadow.Z - state.position.Z)
 			if toward.Magnitude > 20 then
 				local horiz = Vector3.new(state.velocity.X, 0, state.velocity.Z)
@@ -258,6 +260,22 @@ local function launch()
 	launchedUntil = state.t + 1.2
 end
 
+local function launchHome()
+	local root = characterRoot()
+	if root == nil or flying() then
+		return
+	end
+	-- Aim horizontally toward the world origin where Base sits (0, 0, 0).
+	-- Positive ImpulseV overcomes the altitude deficit between island and Base.
+	local flat = Vector3.new(state.position.X, 0, state.position.Z)
+	local homeDir: Vector3 = if flat.Magnitude > 1 then -flat.Unit else -Vector3.zAxis
+	state.mode = "Launched"
+	state.position = root.Position
+	state.velocity = homeDir * GameConfig.World.HomePad.ImpulseH
+		+ Vector3.new(0, GameConfig.World.HomePad.ImpulseV, 0)
+	launchedUntil = state.t + GameConfig.World.HomePad.LaunchSeconds
+end
+
 function FlightController.start()
 	if started then
 		return
@@ -310,6 +328,28 @@ function FlightController.start()
 				prompt.Triggered:Connect(function()
 					launch()
 				end)
+			end
+		end
+		-- Wire the orange spring (HomePad) on every in-slice island so the player
+		-- can return to Base after a grab regardless of which island they landed on.
+		for _, islandDef in GameConfig.Islands do
+			if islandDef.inSlice then
+				local islandModel = world:WaitForChild(islandDef.id, 15)
+				if islandModel then
+					local homePad = islandModel:FindFirstChild("HomePad")
+					if homePad and homePad:IsA("BasePart") then
+						homePad.Touched:Connect(function(hit)
+							local character = Players.LocalPlayer.Character
+							if character and hit:IsDescendantOf(character) then
+								launchHome()
+							end
+						end)
+						local homePrompt = homePad:FindFirstChild("LaunchHomePrompt")
+						if homePrompt and homePrompt:IsA("ProximityPrompt") then
+							homePrompt.Triggered:Connect(launchHome)
+						end
+					end
+				end
 			end
 		end
 	end)

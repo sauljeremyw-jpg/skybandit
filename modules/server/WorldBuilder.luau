@@ -86,6 +86,19 @@ local function buildIsland(parent: Folder, def: GameConfig.IslandDef, index: num
 	beacon.CanCollide = false
 	local guardian = part("Guardian", Vector3.new(8, 16, 8), CFrame.new(origin + Vector3.new(20, 10, 0)), Color3.fromRGB(140, 50, 50), model)
 	guardian.CanCollide = false
+	-- Orange spring pad: the island is below Base altitude, so players need a
+	-- launch boost to carry an egg home. Touch or prompt fires launchHome() on
+	-- the client, which redirects velocity toward the origin (Base).
+	local homePad = part("HomePad", Vector3.new(12, 2, 12), CFrame.new(origin + Vector3.new(-20, 3, 0)), Color3.fromRGB(255, 140, 0), model)
+	homePad.Material = Enum.Material.Neon
+	local homePrompt = Instance.new("ProximityPrompt")
+	homePrompt.Name = "LaunchHomePrompt"
+	homePrompt.ActionText = "Return to Base"
+	homePrompt.ObjectText = "Spring Pad"
+	homePrompt.HoldDuration = 0
+	homePrompt.MaxActivationDistance = 18
+	homePrompt.RequiresLineOfSight = false
+	homePrompt.Parent = homePad
 	islandsById[def.id] = model
 	model.ModelStreamingMode = Enum.ModelStreamingMode.Persistent
 	local nestPos = origin + Vector3.new(0, 4, 0)
