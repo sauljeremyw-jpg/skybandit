@@ -31,6 +31,7 @@ local started = false
 local launchedUntil = 0
 local spawnGraceUntil = 0
 local timeOverIsland = 0
+local timeOverBase = 0
 
 local function characterRoot(): BasePart?
 	local character = Players.LocalPlayer.Character
@@ -87,6 +88,7 @@ end
 
 local function landOn(root: BasePart, point: Vector3)
 	timeOverIsland = 0
+	timeOverBase = 0
 	state.mode = "Grounded"
 	state.velocity = Vector3.zero
 	state.position = point
@@ -96,6 +98,28 @@ local function landOn(root: BasePart, point: Vector3)
 	if humanoid then
 		humanoid.PlatformStand = false
 	end
+end
+
+-- Mirrors islandUnder for the home Base platform so right-click look-around
+-- cannot trap the player hovering above the grey platform.
+local function baseUnder(dt: number): Vector3?
+	local half = GameConfig.World.BasePlatformSize.X / 2
+	local halfZ = GameConfig.World.BasePlatformSize.Z / 2
+	if math.abs(state.position.X) <= half and math.abs(state.position.Z) <= halfZ then
+		timeOverBase += dt
+		local platformTop = GameConfig.World.LaunchEdgeAltitude + GameConfig.World.BasePlatformSize.Y / 2
+		local landY = platformTop + GameConfig.World.CharacterRootHeight
+		local vy = math.min(state.velocity.Y, -45)
+		state.velocity = Vector3.new(state.velocity.X * 0.8, vy, state.velocity.Z * 0.8)
+		if state.position.Y <= platformTop + GameConfig.World.IslandLandRadius
+			or timeOverBase >= GameConfig.World.BaseLandSeconds
+		then
+			return Vector3.new(state.position.X, landY, state.position.Z)
+		end
+		return nil
+	end
+	timeOverBase = 0
+	return nil
 end
 
 -- dt is accumulated to force a land after IslandLandSeconds so lift cannot
@@ -219,25 +243,30 @@ local function step(dt: number)
 		local spot = islandUnder(dt)
 		if spot then
 			landOn(root, spot)
-		elseif state.position.Y < 40 then
-			miss(root)
-		elseif state.velocity.Y <= 8 then
-			local params = RaycastParams.new()
-			params.FilterType = Enum.RaycastFilterType.Exclude
-			local character = root.Parent
-			if character then
-				params.FilterDescendantsInstances = { character }
-			end
-			local hit = workspace:Raycast(state.position, Vector3.new(0, -12, 0), params)
-			if hit and state.position.Y - hit.Position.Y < 6 then
-				local name = hit.Instance.Name
-				local basePiece = name == "Platform" or name == "JumpPad" or name == "SpawnLocation" or name == "WallN" or name == "WallS" or name == "WallE"
-				if not basePiece then
-					local safe = hit.Instance:FindFirstAncestor("GeneratedWorld") ~= nil and hit.Position.Y >= 40
-					if not safe then
+		else
+			local baseSpot = baseUnder(dt)
+			if baseSpot then
+				landOn(root, baseSpot)
+			elseif state.position.Y < 40 then
+				miss(root)
+			elseif state.velocity.Y <= 8 then
+				local params = RaycastParams.new()
+				params.FilterType = Enum.RaycastFilterType.Exclude
+				local character = root.Parent
+				if character then
+					params.FilterDescendantsInstances = { character }
+				end
+				local ray = Vector3.new(0, -GameConfig.Flight.LandRayLength, 0)
+				local hit = workspace:Raycast(state.position, ray, params)
+				if hit and state.position.Y - hit.Position.Y < GameConfig.Flight.LandRayTrigger then
+					-- Any GeneratedWorld surface at safe altitude is a valid landing.
+					-- The old basePiece gate was silently skipping Platform, causing hover.
+					if hit.Instance:FindFirstAncestor("GeneratedWorld") ~= nil and hit.Position.Y >= 40 then
+						landOn(root, Vector3.new(state.position.X,
+							hit.Position.Y + GameConfig.World.CharacterRootHeight,
+							state.position.Z))
+					elseif hit.Instance:FindFirstAncestor("GeneratedWorld") == nil then
 						miss(root)
-					else
-						landOn(root, Vector3.new(state.position.X, hit.Position.Y + 3, state.position.Z))
 					end
 				end
 			end
@@ -397,6 +426,7 @@ function FlightController.start()
 		state.mode = "Grounded"
 		state.velocity = Vector3.zero
 		timeOverIsland = 0
+		timeOverBase = 0
 		-- Grace window: ignore JumpPad touch immediately after spawn so the
 		-- character cannot be auto-launched off Base before they are stable.
 		spawnGraceUntil = os.clock() + GameConfig.World.SpawnGraceSeconds
