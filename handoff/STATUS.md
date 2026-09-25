@@ -67,6 +67,11 @@ Rebuild: `rojo serve` → Studio Rojo plugin → **File → Save As → skybandi
 
 ---
 
+## 2026-09-25 morning session
+
+- **Thornspire unreachable after tier-2 buy (fixed)**: `islandUnder()` had unconditional horizontal velocity damp (×0.8/frame) + 1.5 s force-land. Path to Thornspire crosses Meadowrock's flat radius (49.6 studs from center, 115-stud chord). At speed 80, transit = 1.44 s (under 1.5 threshold) but the damp reduced speed to ~15 studs/s → transit stretched to > 1.5 s → force-landed on Meadowrock. Fix: remove horizontal damp from islandUnder (time-based force-land alone handles hover); raise `IslandLandSeconds` 1.5 → 2.5 so transit at 60 studs/s (1.92 s) stays under threshold.
+- **HUD next-aircraft line**: `redraw()` now shows `next plane: PlaneName  Cost` (or `MAX tier`) below the perch row, matching the existing next-perch-cost pattern.
+
 ## Still not launch
 
 - No full Studio playtest end-to-end with multiple players yet.

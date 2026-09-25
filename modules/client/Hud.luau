@@ -81,15 +81,20 @@ function Hud.start()
 	local pets = "?"
 	local carry = "empty"
 	local perchLevel = 0
+	local tierNum = 1
 
 	local function redraw()
 		local def = GameConfig.Upgrades.perchSlots
-		local nextCost = if perchLevel < def.maxLevel
+		local nextPerch = if perchLevel < def.maxLevel
 			then tostring(GameConfig.upgradeCost(def.costBase, def.costMult, perchLevel))
 			else "MAX"
+		local nextAircraftDef = GameConfig.getAircraft(tierNum + 1)
+		local nextPlane = if nextAircraftDef ~= nil
+			then nextAircraftDef.name .. "  " .. tostring(nextAircraftDef.cost)
+			else "MAX tier"
 		label.Text = string.format(
-			"coins %s\ntier %s   pets %s\nperch lv%d  next:%s\ncarry %s",
-			coins, tier, pets, perchLevel, nextCost, carry
+			"coins %s\ntier %s   pets %s   perch lv%d  next:%s\nnext plane: %s\ncarry %s",
+			coins, tier, pets, perchLevel, nextPerch, nextPlane, carry
 		)
 	end
 
@@ -98,6 +103,9 @@ function Hud.start()
 			return
 		end
 		coins = tostring(payload.coins)
+		if typeof(payload.aircraftTier) == "number" then
+			tierNum = payload.aircraftTier
+		end
 		tier = tostring(payload.aircraftTier)
 		pets = tostring(payload.petCount)
 		if typeof(payload.perchSlotsLevel) == "number" then

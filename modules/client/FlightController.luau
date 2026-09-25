@@ -131,11 +131,11 @@ local function islandUnder(dt: number): Vector3?
 			if origin then
 				local flat = Vector3.new(state.position.X - origin.X, 0, state.position.Z - origin.Z)
 				if flat.Magnitude <= GameConfig.World.IslandRadius - 4 then
+					-- Accumulate time without damping horizontal speed.  Damping killed
+					-- transit passes to farther islands (Thornspire path crosses Meadowrock
+					-- radius at ~49 studs offset; damp reduced speed below threshold).
+					-- Time-based force-land alone handles the hover case.
 					timeOverIsland += dt
-					-- Always apply downward assist regardless of altitude so lift cannot
-					-- hold the player aloft over the island.
-					local vy = math.min(state.velocity.Y, -45)
-					state.velocity = Vector3.new(state.velocity.X * 0.8, vy, state.velocity.Z * 0.8)
 					local groundTop = origin.Y + GameConfig.World.IslandGroundHeight / 2
 					local landY = groundTop + GameConfig.World.CharacterRootHeight
 					if state.position.Y <= groundTop + GameConfig.World.IslandLandRadius
