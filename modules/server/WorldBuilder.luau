@@ -82,6 +82,26 @@ local function buildIsland(parent: Folder, def: GameConfig.IslandDef, index: num
 	local beacon = part("Beacon", Vector3.new(4, 24, 4), CFrame.new(origin + Vector3.new(0, 16, 0)), Color3.fromRGB(255, 220, 40), model)
 	beacon.Material = Enum.Material.Neon
 	beacon.CanCollide = false
+	-- Floating name label: BillboardGui always faces the camera so the island
+	-- name is readable from glide distance.  Parented to the Beacon so it sits
+	-- well above the island surface.
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "IslandLabel"
+	billboard.StudsOffset = Vector3.new(0, 16, 0)
+	billboard.Size = UDim2.new(0, 400, 0, 60)
+	billboard.AlwaysOnTop = false
+	billboard.MaxDistance = 2000
+	billboard.Parent = beacon
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Size = UDim2.fromScale(1, 1)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Text = def.name
+	nameLabel.TextColor3 = Color3.new(1, 1, 1)
+	nameLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+	nameLabel.TextStrokeTransparency = 0
+	nameLabel.TextScaled = true
+	nameLabel.Font = Enum.Font.GothamBold
+	nameLabel.Parent = billboard
 	local guardian = part("Guardian", Vector3.new(8, 16, 8), CFrame.new(origin + Vector3.new(20, 10, 0)), Color3.fromRGB(140, 50, 50), model)
 	guardian.CanCollide = false
 	-- Orange spring pad: the island is below Base altitude, so players need a
