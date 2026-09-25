@@ -7,16 +7,12 @@ local Types = require(Shared:WaitForChild("Types"))
 local Net = require(Shared:WaitForChild("Net"))
 local WorldBuilder = require(script.WorldBuilder)
 
--- Prevent characters from auto-spawning before the world is built and
--- RespawnLocation is armed.  seat() re-enables CharacterAutoLoads = true
--- on the first confirmed stable placement so future deaths respawn normally.
-local function disableAutoLoad(player: Player)
-	player.CharacterAutoLoads = false
-end
-for _, player in Players:GetPlayers() do
-	disableAutoLoad(player)
-end
-Players.PlayerAdded:Connect(disableAutoLoad)
+-- Block all character auto-loads at the service level.  Characters are loaded
+-- explicitly: initial players get LoadCharacter() after setup; deaths are handled
+-- by Humanoid.Died in WorldBuilder so respawns always go through seat() with
+-- RespawnLocation already armed.  Player.CharacterAutoLoads is per-Player and
+-- does NOT gate the service auto-load; only Players.CharacterAutoLoads does.
+Players.CharacterAutoLoads = false
 
 Net.start()
 WorldBuilder.build()
@@ -34,13 +30,13 @@ EconomyService.start()
 PetService.start()
 HeistService.start()
 
--- World built, RespawnLocation armed.  Now it is safe to spawn characters.
+-- World built, RespawnLocation armed.  Trigger the initial character load.
+-- Deaths are handled by Humanoid.Died in WorldBuilder (CharacterAutoLoads stays false).
 for _, player in Players:GetPlayers() do
 	player:LoadCharacter()
 end
--- Players who join after boot: DisableAutoLoad already fired via PlayerAdded;
--- this second handler loads their character after WorldBuilder.start() has
--- pre-armed their RespawnLocation.
+-- New joiners: arm RespawnLocation (done by WorldBuilder.start PlayerAdded hook)
+-- then load their character.
 Players.PlayerAdded:Connect(function(player: Player)
 	player:LoadCharacter()
 end)

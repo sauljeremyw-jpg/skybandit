@@ -181,13 +181,8 @@ local function spawnPad(): SpawnLocation?
 end
 
 local function seat(player: Player, character: Model)
-	-- CharacterAutoLoads was disabled at boot so the initial spawn could not race
-	-- the world build.  Re-enable it now: the world is ready and RespawnLocation
-	-- is armed, so any future death auto-respawns at the correct altitude.
-	player.CharacterAutoLoads = true
-	-- ForceField must exist BEFORE WaitForChild yields so TakeDamage lava
-	-- cannot kill the character during the replication gap between CharacterAdded
-	-- and the first CFrame teleport.
+	-- ForceField before WaitForChild so TakeDamage lava cannot kill during the
+	-- replication gap between CharacterAdded and the first CFrame teleport.
 	local ff = Instance.new("ForceField")
 	ff.Visible = false
 	ff.Parent = character
@@ -197,29 +192,37 @@ local function seat(player: Player, character: Model)
 		return
 	end
 	local spawn = spawnPad()
-	local cf = if spawn then spawn.CFrame + Vector3.new(0, 4, 0) else CFrame.new(0, GameConfig.World.LaunchEdgeAltitude + 8, 0)
+	local cf = if spawn ~= nil
+		then spawn.CFrame + Vector3.new(0, 4, 0)
+		else CFrame.new(0, GameConfig.World.LaunchEdgeAltitude + 8, 0)
+	local padY = if spawn ~= nil then spawn.Position.Y else -1
+	print(string.format("[seat] %s  hrp_y=%.0f  target_y=%.0f  pad_y=%.0f",
+		player.Name, root.Position.Y, cf.Position.Y, padY))
 	local function place()
-		if spawn then
+		if spawn ~= nil then
 			player.RespawnLocation = spawn
 		end
 		root.AssemblyLinearVelocity = Vector3.zero
 		root.CFrame = cf
 	end
 	place()
+	-- Keep re-homing until the character is confirmed grounded near Base altitude.
+	-- task.wait is at the TOP so at least one physics frame passes before we check.
+	-- Threshold: LaunchEdgeAltitude - 4 so lava (Y≈7) and mid-air never pass.
+	local threshold = GameConfig.World.LaunchEdgeAltitude - 4
 	task.spawn(function()
 		for _ = 1, 40 do
+			task.wait(0.1)
 			if root.Parent == nil then
 				ff:Destroy()
 				return
 			end
-			if root.Position.Y > 70 then
-				-- Character confirmed above safe altitude; lava can kill normally now.
+			if root.Position.Y > threshold then
 				ff:Destroy()
 				return
 			end
 			root.AssemblyLinearVelocity = Vector3.zero
 			root.CFrame = cf
-			task.wait(0.1)
 		end
 		ff:Destroy()
 	end)
@@ -228,6 +231,18 @@ end
 local function hookPlayer(player: Player)
 	player.CharacterAdded:Connect(function(character)
 		seat(player, character)
+		-- CharacterAutoLoads is false (service level); wire up post-death respawn
+		-- explicitly so the next character also goes through seat() with the
+		-- SpawnLocation already armed.
+		local humanoid = character:WaitForChild("Humanoid", 10)
+		if humanoid and humanoid:IsA("Humanoid") then
+			humanoid.Died:Connect(function()
+				task.wait(GameConfig.World.RespawnDelaySeconds)
+				if player.Parent ~= nil then
+					player:LoadCharacter()
+				end
+			end)
+		end
 	end)
 	if player.Character then
 		seat(player, player.Character)

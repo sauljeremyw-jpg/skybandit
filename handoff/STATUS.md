@@ -29,6 +29,35 @@ Second Studio playtest hit two cascading failures:
 
 After these two fixes, `WorldBuilder.build()` completes, `GeneratedWorld` appears in Workspace, the client `WaitForChild` resolves, and flight:state events process without flooding the log.
 
+## Hotfix — 2026-09-25 (round 6): Players.CharacterAutoLoads (service) + Humanoid.Died respawn
+
+Root cause of post-death lava loop:
+
+1. `player.CharacterAutoLoads` (per-Player) is NOT the service-level gate. The correct
+   property is `Players.CharacterAutoLoads` on the Players service. Setting it per-player
+   was a silent no-op — the service-level auto-load was never actually disabled.
+
+2. `seat()` had `player.CharacterAutoLoads = true` which was also a no-op (same wrong API).
+
+3. After death, `Players.CharacterAutoLoads` was still the Roblox default (true), so
+   auto-respawn happened — but since the per-player gate never worked, there was nothing
+   guaranteed about where the character respawned.
+
+4. The ForceField removal check `root.Position.Y > 70` fired immediately (Y=122 > 70)
+   before the character had settled one physics frame on the Platform.
+
+**Fixes:**
+- `Players.CharacterAutoLoads = false` (service level, one line) at the top of
+  init.server.luau. Kept false permanently; all character loads are explicit.
+- Deaths wired via `humanoid.Died → task.wait(RespawnDelaySeconds) → player:LoadCharacter()`
+  in `hookPlayer()` (WorldBuilder). Every respawn goes through seat() with SpawnLocation armed.
+- `GameConfig.World.RespawnDelaySeconds = 3` (no inline magic number).
+- `seat()`: removed bogus `player.CharacterAutoLoads = true`. `task.wait(0.1)` moved
+  to TOP of retry loop (at least one physics frame before checking). Threshold raised from
+  `Y > 70` to `Y > LaunchEdgeAltitude - 4` (= 116) so mid-air and lava-surface heights
+  cannot pass the confirmation check.
+- Server print on each seat() call: hrp_y, target_y, pad_y visible in Studio Output.
+
 ## Hotfix — 2026-09-25 (round 5): CharacterAutoLoads + JumpPad grace gate
 
 Second spawn-loop iteration. After round 4's ForceField/TakeDamage fix, Jeremy
