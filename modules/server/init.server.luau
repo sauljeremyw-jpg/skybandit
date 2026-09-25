@@ -83,6 +83,22 @@ Net.handleFunction("shop:upgrade", function(player, payload)
 	return { ok = ok, err = err }
 end, 20)
 
+-- Client calls this immediately after Hud.start() to get a guaranteed-fresh
+-- snapshot even if the PlayerData.onLoaded snapshot fired before the client
+-- registered its save:snapshot listener (race with Mock / fast DataStore).
+Net.handleFunction("shop:requestSnapshot", function(player)
+	local save = PlayerData.get(player)
+	if save ~= nil then
+		Net.fireClient("save:snapshot", player, {
+			coins = save.coins,
+			aircraftTier = save.aircraftTier,
+			petCount = #save.pets,
+			perchSlotsLevel = save.upgrades.perchSlots,
+		})
+	end
+	return { ok = true }
+end, 5)
+
 Net.handleFunction("debug:ping", function(_player, _payload)
 	return { ok = true, serverTime = os.time() }
 end, 30)

@@ -157,6 +157,11 @@ function Hud.start()
 	button(gui, "Perch", "Upgrade perch", 0).MouseButton1Click:Connect(function()
 		show(Net.invoke("shop:upgrade", { name = "perchSlots" }))
 	end)
+
+	-- Pull a guaranteed-fresh snapshot so perchSlotsLevel and coins are never
+	-- stale from a missed PlayerData.onLoaded push (timing race with Mock/fast
+	-- DataStore where onLoaded fires before this listener was registered).
+	Net.invoke("shop:requestSnapshot", {})
 end
 
 function Hud.fail(message: string)
