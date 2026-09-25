@@ -85,16 +85,18 @@ function Hud.start()
 
 	local function redraw()
 		local def = GameConfig.Upgrades.perchSlots
-		local nextPerch = if perchLevel < def.maxLevel
+		local perchUpg = if perchLevel < def.maxLevel
 			then tostring(GameConfig.upgradeCost(def.costBase, def.costMult, perchLevel))
 			else "MAX"
 		local nextAircraftDef = GameConfig.getAircraft(tierNum + 1)
-		local nextPlane = if nextAircraftDef ~= nil
-			then nextAircraftDef.name .. "  " .. tostring(nextAircraftDef.cost)
-			else "MAX tier"
+		-- Aircraft progression on the tier line so it is unambiguously linked to tier.
+		-- Perch upgrade cost labelled 'upg:' to avoid confusion with 'next plane'.
+		local planeNext = if nextAircraftDef ~= nil
+			then "→ " .. nextAircraftDef.name .. " " .. tostring(nextAircraftDef.cost)
+			else "(max tier)"
 		label.Text = string.format(
-			"coins %s\ntier %s   pets %s   perch lv%d  next:%s\nnext plane: %s\ncarry %s",
-			coins, tier, pets, perchLevel, nextPerch, nextPlane, carry
+			"coins %s\ntier %s  %s\npets %s   perch lv%d  upg:%s\ncarry %s",
+			coins, tier, planeNext, pets, perchLevel, perchUpg, carry
 		)
 	end
 
