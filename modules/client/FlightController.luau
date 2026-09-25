@@ -343,7 +343,10 @@ local function launchHome()
 	local homeDir: Vector3 = if flat.Magnitude > 1 then -flat.Unit else -Vector3.zAxis
 	state.mode = "Launched"
 	state.position = root.Position
-	state.velocity = homeDir * GameConfig.World.HomePad.ImpulseH
+	-- ReturnImpulseH is a dedicated dial for island→Base reach; ImpulseH is
+	-- reserved as a separate outbound-facing constant so the two can be tuned
+	-- independently.  ImpulseV (hang height) is shared and still governs both.
+	state.velocity = homeDir * GameConfig.World.HomePad.ReturnImpulseH
 		+ Vector3.new(0, GameConfig.World.HomePad.ImpulseV, 0)
 	launchedUntil = state.t + GameConfig.World.HomePad.LaunchSeconds
 end
