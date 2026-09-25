@@ -46,9 +46,6 @@ local function buildBase(parent: Folder)
 	local size = GameConfig.World.BasePlatformSize
 	local altitude = GameConfig.World.LaunchEdgeAltitude
 	local platform = part("Platform", size, CFrame.new(0, altitude, 0), Color3.fromRGB(90, 90, 90), base)
-	part("WallN", Vector3.new(size.X, 12, 2), CFrame.new(0, altitude + 8, -size.Z / 2), Color3.fromRGB(70, 70, 70), base)
-	part("WallS", Vector3.new(size.X, 12, 2), CFrame.new(0, altitude + 8, size.Z / 2), Color3.fromRGB(70, 70, 70), base)
-	part("WallE", Vector3.new(2, 12, size.Z), CFrame.new(size.X / 2, altitude + 8, 0), Color3.fromRGB(70, 70, 70), base)
 	local pad = part("JumpPad", Vector3.new(16, 2, 16), CFrame.new(0, altitude + size.Y / 2 + 1, size.Z / 2 - 12), Color3.fromRGB(40, 200, 80), base)
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.Name = "LaunchPrompt"
