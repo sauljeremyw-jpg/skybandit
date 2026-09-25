@@ -149,7 +149,12 @@ local function step(dt: number)
 			-- they clear the altitude deficit.  Outbound (not carrying) steers freely.
 			if not (carrying and state.t < launchedUntil) then
 				local wish = look.Unit * speed
-				local alpha = math.clamp(dt * GameConfig.Flight.SnapshotHz, 0, 1)
+				-- Steer harder toward camera when looking steeply down so velocity
+				-- tracks the dive direction quickly for a precise vertical landing.
+				local steerMult = if look.Y <= GameConfig.Flight.DiveLookDownY
+					then GameConfig.Flight.DiveLookDownSteerMult
+					else 1
+				local alpha = math.clamp(dt * GameConfig.Flight.SnapshotHz * steerMult, 0, 1)
 				state.velocity = state.velocity:Lerp(wish, alpha)
 			end
 			speed = state.velocity.Magnitude
@@ -167,10 +172,14 @@ local function step(dt: number)
 			local gravity = Vector3.yAxis * -GRAVITY
 			state.velocity += (up + drag + gravity) * dt
 			if state.velocity.Y < 0 then
-				local horizontalLook = Vector3.new(look.X, 0, look.Z)
-				if horizontalLook.Magnitude > 0.01 then
-					local converted = -state.velocity.Y * GameConfig.Flight.DiveExchangeRate * dt
-					state.velocity += horizontalLook.Unit * converted
+				-- Skip dive-to-horizontal conversion when looking steeply down so
+				-- the player sinks toward the landing spot instead of being pushed flat.
+				if look.Y > GameConfig.Flight.DiveLookDownY then
+					local horizontalLook = Vector3.new(look.X, 0, look.Z)
+					if horizontalLook.Magnitude > 0.01 then
+						local converted = -state.velocity.Y * GameConfig.Flight.DiveExchangeRate * dt
+						state.velocity += horizontalLook.Unit * converted
+					end
 				end
 			end
 			local terminal = GameConfig.terminalSpeed(carrying)

@@ -139,6 +139,11 @@ Config: `GameConfig.World.HomePad = { ImpulseH = 90, ImpulseV = 60, LaunchSecond
 8. Tap **Upgrade perch** → info label perch level increments and next-cost updates; tap repeatedly to approach max_level; tap with insufficient coins → status shows "poor".
 9. Confirm all four buttons respond with status-label feedback (no silent failures).
 
+## Landed (2026-09-25 continued)
+
+- **Studio data persist**: `PlayerData` now tries the live DataStore in Studio (pcall); warns and falls back to Mock only if API is unreachable. `profile:Save()` added before `EndSession()` in PlayerRemoving. `game:BindToClose` saves and ends all active profiles on server shutdown. **Prerequisite**: Game Settings → Security → Studio Access to API Services must be on for live persistence.
+- **Dive look-down feel**: `GameConfig.Flight.DiveLookDownY = -0.35`, `DiveLookDownSteerMult = 2`. When `look.Y ≤ -0.35`, DiveExchangeRate horizontal conversion is skipped (downward speed stays downward) and camera-steer alpha doubles so velocity tracks the steep dive quickly. Outbound magnet and HomePad launch window unchanged.
+
 ## Still not launch
 
 - No Studio playtest yet. The 7 Day-1 checks and the two flight/heist tests have not been run in Roblox.
