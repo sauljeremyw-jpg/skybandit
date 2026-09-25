@@ -29,6 +29,21 @@ Second Studio playtest hit two cascading failures:
 
 After these two fixes, `WorldBuilder.build()` completes, `GeneratedWorld` appears in Workspace, the client `WaitForChild` resolves, and flight:state events process without flooding the log.
 
+## Hotfix — 2026-09-25 (round 4): spawn / lava death loop
+
+**Root cause chain:**
+1. `lava.Touched` used `humanoid.Health = 0` (direct assignment), which bypasses ForceField — no spawn protection worked.
+2. `seat()` called `character:WaitForChild("HumanoidRootPart")` which **yields** before teleporting. During that yield, lava could fire and kill the character.
+3. `player.RespawnLocation` was set inside `seat()` **after** the yield, so if the character died mid-yield the next respawn used Roblox's default position (Y≈0 → lava → loop).
+4. `SpawnLocation.Duration = 0` gave no automatic ForceField on respawn.
+
+**Fixes:**
+- `lava.Touched` now calls `humanoid:TakeDamage(humanoid.MaxHealth)` so ForceField blocks it.
+- `seat()` creates an invisible `ForceField` on the character **before** `WaitForChild` yields. The FF is destroyed once the character is confirmed above Y=70 (or after 4 s cap). Lava cannot kill during the teleport window.
+- `SpawnLocation.Duration = 5` — 5-second ForceField on every SpawnLocation respawn.
+- `WorldBuilder.start()` pre-arms `player.RespawnLocation` before `hookPlayer` runs, so a first-frame death respawns at Base altitude, not Y=0.
+- `FlightController`: camera-steer lerp suppressed while `carrying and state.t < launchedUntil` so the HomePad's homeward velocity is not immediately overridden by a random camera direction.
+
 ## Hotfix — 2026-09-25 (round 3): HomePad spring + carry magnet gate
 
 Meadowrock (and all in-slice islands) sit below Base altitude by design. After Grab the player could not glide home. Fixed by adding an **orange spring pad ("HomePad")** to every in-slice island in `WorldBuilder.buildIsland()`. Touching or prompting it fires `launchHome()` in FlightController, which fires the player toward the world origin (Base) at ImpulseH=90 horizontal + ImpulseV=60 upward — enough to clear the altitude deficit while carrying.

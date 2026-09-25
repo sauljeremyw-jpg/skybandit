@@ -143,9 +143,14 @@ local function step(dt: number)
 		end
 		local speed = state.velocity.Magnitude
 		if speed > 0.01 then
-			local wish = look.Unit * speed
-			local alpha = math.clamp(dt * GameConfig.Flight.SnapshotHz, 0, 1)
-			state.velocity = state.velocity:Lerp(wish, alpha)
+			-- While carrying within the HomePad launch window, hold the homeward
+			-- velocity so camera drift cannot veer the player away from Base before
+			-- they clear the altitude deficit.  Outbound (not carrying) steers freely.
+			if not (carrying and state.t < launchedUntil) then
+				local wish = look.Unit * speed
+				local alpha = math.clamp(dt * GameConfig.Flight.SnapshotHz, 0, 1)
+				state.velocity = state.velocity:Lerp(wish, alpha)
+			end
 			speed = state.velocity.Magnitude
 		end
 		local liftForce = math.min(GameConfig.Flight.LiftK * speed * speed + lift, GameConfig.Flight.LiftCap)

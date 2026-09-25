@@ -64,7 +64,8 @@ local function buildBase(parent: Folder)
 	spawn.CFrame = CFrame.new(0, altitude + size.Y / 2 + 0.5, 0)
 	spawn.Anchored = true
 	spawn.Neutral = true
-	spawn.Duration = 0
+	-- ForceField on respawn so TakeDamage lava cannot loop-kill a respawning character.
+	spawn.Duration = 5
 	spawn.Enabled = true
 	spawn.Parent = base
 	base.PrimaryPart = platform
@@ -156,7 +157,9 @@ function WorldBuilder.build()
 		end
 		local humanoid = character:FindFirstChildOfClass("Humanoid")
 		if humanoid and humanoid.Health > 0 then
-			humanoid.Health = 0
+			-- TakeDamage (not direct Health assignment) so a ForceField from
+			-- seat() or SpawnLocation.Duration blocks lava during spawn window.
+			humanoid:TakeDamage(humanoid.MaxHealth)
 		end
 	end)
 end
@@ -178,8 +181,15 @@ local function spawnPad(): SpawnLocation?
 end
 
 local function seat(player: Player, character: Model)
+	-- ForceField must exist BEFORE WaitForChild yields so TakeDamage lava
+	-- cannot kill the character during the replication gap between CharacterAdded
+	-- and the first CFrame teleport.
+	local ff = Instance.new("ForceField")
+	ff.Visible = false
+	ff.Parent = character
 	local root = character:WaitForChild("HumanoidRootPart")
 	if not root:IsA("BasePart") then
+		ff:Destroy()
 		return
 	end
 	local spawn = spawnPad()
@@ -195,15 +205,19 @@ local function seat(player: Player, character: Model)
 	task.spawn(function()
 		for _ = 1, 40 do
 			if root.Parent == nil then
+				ff:Destroy()
 				return
 			end
 			if root.Position.Y > 70 then
+				-- Character confirmed above safe altitude; lava can kill normally now.
+				ff:Destroy()
 				return
 			end
 			root.AssemblyLinearVelocity = Vector3.zero
 			root.CFrame = cf
 			task.wait(0.1)
 		end
+		ff:Destroy()
 	end)
 end
 
@@ -217,10 +231,20 @@ local function hookPlayer(player: Player)
 end
 
 function WorldBuilder.start()
-	for _, player in Players:GetPlayers() do
+	-- Pre-arm RespawnLocation before any character auto-loads.  Without this,
+	-- a character that dies before seat() runs its WaitForChild yield will
+	-- respawn at Roblox's default position (Y≈0) directly onto the lava.
+	local spawn = spawnPad()
+	local function armPlayer(player: Player)
+		if spawn then
+			player.RespawnLocation = spawn
+		end
 		hookPlayer(player)
 	end
-	Players.PlayerAdded:Connect(hookPlayer)
+	for _, player in Players:GetPlayers() do
+		armPlayer(player)
+	end
+	Players.PlayerAdded:Connect(armPlayer)
 	Players.PlayerRemoving:Connect(function(player)
 		basesByPlayer[player] = nil
 	end)
