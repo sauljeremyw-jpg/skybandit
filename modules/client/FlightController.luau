@@ -113,6 +113,13 @@ local function baseUnder(dt: number): Vector3?
 	if math.abs(state.position.X) <= half and math.abs(state.position.Z) <= halfZ then
 		local platformTop = GameConfig.World.LaunchEdgeAltitude + GameConfig.World.BasePlatformSize.Y / 2
 		local landY = platformTop + GameConfig.World.CharacterRootHeight
+		-- If the player has fallen through the deck (below platformTop - 2) they are
+		-- inside the lava/void under Base.  miss() never fires because XZ is inside
+		-- the Base footprint; PlatformStand=flying() freezes them in place.
+		-- Snap back to the platform surface immediately.
+		if state.position.Y < platformTop - 2 then
+			return Vector3.new(state.position.X, landY, state.position.Z)
+		end
 		local horizSpeed = Vector3.new(state.velocity.X, 0, state.velocity.Z).Magnitude
 		if horizSpeed < GameConfig.World.IslandLandSpeedThreshold then
 			timeOverBase += dt
