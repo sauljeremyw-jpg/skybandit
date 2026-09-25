@@ -1,7 +1,4 @@
 --!strict
-local Workspace = game:GetService("Workspace")
-Workspace.StreamingEnabled = false
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameConfig = require(Shared:WaitForChild("GameConfig"))

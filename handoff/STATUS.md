@@ -15,6 +15,10 @@ Built in this chat. No Claude credits and no SkyBandit bots used.
 - **Perch upgrade HUD button landed.** Tap "Upgrade perch" → fires `shop:upgrade {name="perchSlots"}` → EconomyService.buyUpgrade validates level cap, coin balance, and unknown-name; returns `{ok, err}` displayed on the status label (fail-closed, no silent no-ops). Info label now shows current perch level and cost of next upgrade.
 - `save:snapshot` now carries `perchSlotsLevel` so the HUD always reflects the server-authoritative level.
 
+## Hotfix — 2026-09-25
+
+Studio boot was blocked by two `Workspace.StreamingEnabled = false` writes in `init.server.luau` (line 3) and `WorldBuilder.luau` (`WorldBuilder.build()`). Scripts lack the Plugin capability required to write that property at runtime; Rojo's `default.project.json` already sets it via `$properties`, which is the correct place. Both writes removed. The unused `local Workspace = game:GetService("Workspace")` import in `init.server.luau` was also dropped. WorldBuilder retains its own `Workspace` import for part creation. Boot should now reach `Net.start()` and `WorldBuilder.build()` without capability errors.
+
 ## Studio playtest checklist
 
 1. Open Roblox Studio → File → Open From File → `default.project.json` (requires Rojo plugin ≥ 7).

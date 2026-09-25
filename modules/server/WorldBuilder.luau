@@ -102,7 +102,6 @@ local function assertAnchored(instance: Instance)
 end
 
 function WorldBuilder.build()
-	Workspace.StreamingEnabled = false
 	local existing = Workspace:FindFirstChild(ROOT_NAME)
 	if existing then
 		existing:Destroy()
