@@ -29,6 +29,23 @@ Second Studio playtest hit two cascading failures:
 
 After these two fixes, `WorldBuilder.build()` completes, `GeneratedWorld` appears in Workspace, the client `WaitForChild` resolves, and flight:state events process without flooding the log.
 
+## Hotfix — 2026-09-25 (round 7): bulletproof seat() — Spawning attribute + anchor-PivotTo + raycast confirm
+
+b1ae016 still left the player on lava because:
+1. `root.Position.Y > LaunchEdgeAltitude-4` (= 116) fired immediately after ONE task.wait(0.1) when the character respawned at Y=122, removing the ForceField before physics had settled. Lava could then kill during the confirmation gap.
+2. `root.CFrame = cf` (not `character:PivotTo`) only moves HumanoidRootPart; other character parts can lag behind. Physics fights the placement. No anchor hold.
+3. No secondary kill guard — once the ForceField was removed, lava.Touched could fire.
+4. Print was before place(), showing pre-teleport Y.
+
+**Fixes (WorldBuilder.luau + GameConfig.luau):**
+- `player:SetAttribute("Spawning", true)` at seat() entry. lava.Touched checks BOTH ForceField AND Spawning attribute before TakeDamage. Spawning cleared only when platform raycast confirms grounded on Base.Platform.
+- `root.Anchored = true` + zero velocity + `character:PivotTo(target)` for solid placement. Anchored hold for AnchorHoldSeconds (0.35 s) so physics settles before release.
+- Target is `platform.CFrame * CFrame.new(0, Platform.Size.Y/2 + 5, 0)` (5 studs above Platform top) instead of SpawnLocation+4. Falls to Platform naturally after unanchoring.
+- Confirmation loop uses server-side raycast (0, -RayLength, 0) checking `hit.Instance.Name == "Platform"` AND `Y > LaunchEdgeAltitude-10`. Confirmed for ≥ConfirmSeconds (0.5 s) continuous before clearing Spawning and FF. Re-homes (anchor+PivotTo) on any drift below threshold.
+- Hard cap at HardCapSeconds (6 s): clears Spawning, keeps FF for PostCapFF (2 s) buffer.
+- Print AFTER place(): shows `after_y`, `target_y`, `pad_y`.
+- All timing constants in `GameConfig.World.SeatConfig` — no inline numbers.
+
 ## Hotfix — 2026-09-25 (round 6): Players.CharacterAutoLoads (service) + Humanoid.Died respawn
 
 Root cause of post-death lava loop:

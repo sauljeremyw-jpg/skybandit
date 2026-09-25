@@ -155,10 +155,18 @@ function WorldBuilder.build()
 		if character == nil then
 			return
 		end
+		-- ForceField (seat anchor window) blocks TakeDamage.
+		if character:FindFirstChildOfClass("ForceField") ~= nil then
+			return
+		end
+		-- Spawning attribute stays true from seat() start until platform confirmed,
+		-- covering the window after the FF is removed but before grounding is proven.
+		local lavaPlayer = Players:GetPlayerFromCharacter(character)
+		if lavaPlayer ~= nil and lavaPlayer:GetAttribute("Spawning") == true then
+			return
+		end
 		local humanoid = character:FindFirstChildOfClass("Humanoid")
 		if humanoid and humanoid.Health > 0 then
-			-- TakeDamage (not direct Health assignment) so a ForceField from
-			-- seat() or SpawnLocation.Duration blocks lava during spawn window.
 			humanoid:TakeDamage(humanoid.MaxHealth)
 		end
 	end)
@@ -181,50 +189,118 @@ local function spawnPad(): SpawnLocation?
 end
 
 local function seat(player: Player, character: Model)
-	-- ForceField before WaitForChild so TakeDamage lava cannot kill during the
-	-- replication gap between CharacterAdded and the first CFrame teleport.
+	-- Spawning=true blocks lava.Touched kills for the entire seat window,
+	-- including after the ForceField is dropped but before platform is confirmed.
+	player:SetAttribute("Spawning", true)
+
 	local ff = Instance.new("ForceField")
 	ff.Visible = false
 	ff.Parent = character
+
 	local root = character:WaitForChild("HumanoidRootPart")
 	if not root:IsA("BasePart") then
+		player:SetAttribute("Spawning", false)
 		ff:Destroy()
 		return
 	end
+
 	local spawn = spawnPad()
-	local cf = if spawn ~= nil
-		then spawn.CFrame + Vector3.new(0, 4, 0)
-		else CFrame.new(0, GameConfig.World.LaunchEdgeAltitude + 8, 0)
-	local padY = if spawn ~= nil then spawn.Position.Y else -1
-	print(string.format("[seat] %s  hrp_y=%.0f  target_y=%.0f  pad_y=%.0f",
-		player.Name, root.Position.Y, cf.Position.Y, padY))
-	local function place()
-		if spawn ~= nil then
-			player.RespawnLocation = spawn
-		end
-		root.AssemblyLinearVelocity = Vector3.zero
-		root.CFrame = cf
+	if spawn ~= nil then
+		player.RespawnLocation = spawn
 	end
-	place()
-	-- Keep re-homing until the character is confirmed grounded near Base altitude.
-	-- task.wait is at the TOP so at least one physics frame passes before we check.
-	-- Threshold: LaunchEdgeAltitude - 4 so lava (Y≈7) and mid-air never pass.
-	local threshold = GameConfig.World.LaunchEdgeAltitude - 4
-	task.spawn(function()
-		for _ = 1, 40 do
-			task.wait(0.1)
-			if root.Parent == nil then
-				ff:Destroy()
-				return
+
+	-- Prefer the Platform part top face for precise placement; fall back to SpawnLocation.
+	local platform: BasePart? = nil
+	local world = Workspace:FindFirstChild(ROOT_NAME)
+	if world ~= nil then
+		local base = world:FindFirstChild("Base")
+		if base ~= nil then
+			local p = base:FindFirstChild("Platform")
+			if p ~= nil and p:IsA("BasePart") then
+				platform = p :: BasePart
 			end
-			if root.Position.Y > threshold then
-				ff:Destroy()
-				return
-			end
-			root.AssemblyLinearVelocity = Vector3.zero
-			root.CFrame = cf
 		end
-		ff:Destroy()
+	end
+	local target: CFrame
+	if platform ~= nil then
+		target = platform.CFrame * CFrame.new(0, platform.Size.Y / 2 + 5, 0)
+	elseif spawn ~= nil then
+		target = spawn.CFrame + Vector3.new(0, 4, 0)
+	else
+		target = CFrame.new(0, GameConfig.World.LaunchEdgeAltitude + 8, 0)
+	end
+
+	local cfg = GameConfig.World.SeatConfig
+
+	local function placeNow()
+		root.Anchored = true
+		root.AssemblyLinearVelocity = Vector3.zero
+		root.AssemblyAngularVelocity = Vector3.zero
+		character:PivotTo(target)
+	end
+
+	placeNow()
+	print(string.format("[seat] %s  after_y=%.0f  target_y=%.0f  pad_y=%.0f",
+		player.Name, root.Position.Y, target.Position.Y,
+		if spawn ~= nil then spawn.Position.Y else -1))
+
+	task.spawn(function()
+		-- Anchored hold: let physics settle before releasing.
+		task.wait(cfg.AnchorHoldSeconds)
+		root.Anchored = false
+
+		local rayParams = RaycastParams.new()
+		rayParams.FilterDescendantsInstances = { character }
+		rayParams.FilterType = Enum.RaycastFilterType.Exclude
+		local rayDown = Vector3.new(0, -cfg.RayLength, 0)
+		local baseAlt = GameConfig.World.LaunchEdgeAltitude
+
+		local confirmed = 0
+		local elapsed = 0
+
+		while elapsed < cfg.HardCapSeconds do
+			task.wait(cfg.CheckInterval)
+			elapsed += cfg.CheckInterval
+
+			if root.Parent == nil then
+				player:SetAttribute("Spawning", false)
+				ff:Destroy()
+				return
+			end
+
+			local onBase = false
+			if root.Position.Y > baseAlt - 10 then
+				local hit = Workspace:Raycast(root.Position, rayDown, rayParams)
+				if hit ~= nil and hit.Instance.Name == "Platform" then
+					onBase = true
+				end
+			end
+
+			if onBase then
+				confirmed += cfg.CheckInterval
+			else
+				confirmed = 0
+				-- Re-home if drifted below safe altitude.
+				if root.Position.Y < baseAlt - 10 then
+					placeNow()
+					task.wait(cfg.AnchorHoldSeconds)
+					root.Anchored = false
+				end
+			end
+
+			if confirmed >= cfg.ConfirmSeconds then
+				player:SetAttribute("Spawning", false)
+				ff:Destroy()
+				return
+			end
+		end
+
+		-- Hard cap: clear Spawning but keep ForceField for PostCapFF more seconds.
+		player:SetAttribute("Spawning", false)
+		task.wait(cfg.PostCapFF)
+		if ff.Parent ~= nil then
+			ff:Destroy()
+		end
 	end)
 end
 
