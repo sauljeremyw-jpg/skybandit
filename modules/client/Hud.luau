@@ -80,9 +80,17 @@ function Hud.start()
 	local tier = "?"
 	local pets = "?"
 	local carry = "empty"
+	local perchLevel = 0
 
 	local function redraw()
-		label.Text = string.format("coins %s\ntier %s   pets %s\ncarry %s", coins, tier, pets, carry)
+		local def = GameConfig.Upgrades.perchSlots
+		local nextCost = if perchLevel < def.maxLevel
+			then tostring(GameConfig.upgradeCost(def.costBase, def.costMult, perchLevel))
+			else "MAX"
+		label.Text = string.format(
+			"coins %s\ntier %s   pets %s\nperch lv%d  next:%s\ncarry %s",
+			coins, tier, pets, perchLevel, nextCost, carry
+		)
 	end
 
 	Net.on("save:snapshot", function(payload)
@@ -92,6 +100,9 @@ function Hud.start()
 		coins = tostring(payload.coins)
 		tier = tostring(payload.aircraftTier)
 		pets = tostring(payload.petCount)
+		if typeof(payload.perchSlotsLevel) == "number" then
+			perchLevel = payload.perchSlotsLevel
+		end
 		redraw()
 	end)
 
@@ -133,6 +144,10 @@ function Hud.start()
 
 	button(gui, "Aircraft", "Buy next aircraft", 1).MouseButton1Click:Connect(function()
 		show(Net.invoke("shop:aircraft", {}))
+	end)
+
+	button(gui, "Perch", "Upgrade perch", 0).MouseButton1Click:Connect(function()
+		show(Net.invoke("shop:upgrade", { name = "perchSlots" }))
 	end)
 end
 

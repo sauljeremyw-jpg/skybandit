@@ -46,6 +46,7 @@ PlayerData.onLoaded(function(player, save)
 		coins = save.coins,
 		aircraftTier = save.aircraftTier,
 		petCount = #save.pets,
+		perchSlotsLevel = save.upgrades.perchSlots,
 	})
 end)
 
