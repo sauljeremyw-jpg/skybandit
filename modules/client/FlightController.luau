@@ -30,6 +30,7 @@ local started = false
 
 local launchedUntil = 0
 local spawnGraceUntil = 0
+local timeOverIsland = 0
 
 local function characterRoot(): BasePart?
 	local character = Players.LocalPlayer.Character
@@ -85,6 +86,7 @@ local function flying(): boolean
 end
 
 local function landOn(root: BasePart, point: Vector3)
+	timeOverIsland = 0
 	state.mode = "Grounded"
 	state.velocity = Vector3.zero
 	state.position = point
@@ -96,24 +98,33 @@ local function landOn(root: BasePart, point: Vector3)
 	end
 end
 
-local function islandUnder(): Vector3?
+-- dt is accumulated to force a land after IslandLandSeconds so lift cannot
+-- keep the player hovering above the island indefinitely.
+local function islandUnder(dt: number): Vector3?
 	for _, island in GameConfig.Islands do
 		if island.inSlice then
 			local origin = GameConfig.islandWorldPosition(island.id)
 			if origin then
 				local flat = Vector3.new(state.position.X - origin.X, 0, state.position.Z - origin.Z)
-				local top = origin.Y + 5
 				if flat.Magnitude <= GameConfig.World.IslandRadius - 4 then
-					if state.position.Y > top then
-						state.velocity = Vector3.new(state.velocity.X * 0.8, math.min(state.velocity.Y, -45), state.velocity.Z * 0.8)
+					timeOverIsland += dt
+					-- Always apply downward assist regardless of altitude so lift cannot
+					-- hold the player aloft over the island.
+					local vy = math.min(state.velocity.Y, -45)
+					state.velocity = Vector3.new(state.velocity.X * 0.8, vy, state.velocity.Z * 0.8)
+					local groundTop = origin.Y + GameConfig.World.IslandGroundHeight / 2
+					local landY = groundTop + GameConfig.World.CharacterRootHeight
+					if state.position.Y <= groundTop + GameConfig.World.IslandLandRadius
+						or timeOverIsland >= GameConfig.World.IslandLandSeconds
+					then
+						return Vector3.new(origin.X + flat.X, landY, origin.Z + flat.Z)
 					end
-					if state.position.Y <= top + 10 then
-						return Vector3.new(origin.X + flat.X, top, origin.Z + flat.Z)
-					end
+					return nil
 				end
 			end
 		end
 	end
+	timeOverIsland = 0
 	return nil
 end
 
@@ -205,7 +216,7 @@ local function step(dt: number)
 	end
 	state.altitude = state.position.Y
 	if root and flying() and not correcting and state.t >= launchedUntil then
-		local spot = islandUnder()
+		local spot = islandUnder(dt)
 		if spot then
 			landOn(root, spot)
 		elseif state.position.Y < 40 then
@@ -232,19 +243,22 @@ local function step(dt: number)
 			end
 		end
 	end
-	if root and (correcting or flying()) then
+	if root then
 		local humanoid = humanoidOf(root)
-		if humanoid and flying() then
-			humanoid.PlatformStand = true
-		elseif humanoid and not flying() then
-			humanoid.PlatformStand = false
+		if humanoid then
+			-- PlatformStand synced every frame: true while airborne (prevents normal
+			-- walking physics from fighting flight), false every Grounded frame so the
+			-- character can walk immediately without needing a separate landOn call.
+			humanoid.PlatformStand = flying()
 		end
-		root.AssemblyLinearVelocity = state.velocity
-		local face = Vector3.new(state.velocity.X, 0, state.velocity.Z)
-		if face.Magnitude > 0.01 then
-			root.CFrame = CFrame.lookAt(state.position, state.position + face.Unit)
-		else
-			root.CFrame = CFrame.new(state.position)
+		if correcting or flying() then
+			root.AssemblyLinearVelocity = state.velocity
+			local face = Vector3.new(state.velocity.X, 0, state.velocity.Z)
+			if face.Magnitude > 0.01 then
+				root.CFrame = CFrame.lookAt(state.position, state.position + face.Unit)
+			else
+				root.CFrame = CFrame.new(state.position)
+			end
 		end
 	end
 	snapshotAcc += dt
@@ -382,6 +396,7 @@ function FlightController.start()
 	Players.LocalPlayer.CharacterAdded:Connect(function(character)
 		state.mode = "Grounded"
 		state.velocity = Vector3.zero
+		timeOverIsland = 0
 		-- Grace window: ignore JumpPad touch immediately after spawn so the
 		-- character cannot be auto-launched off Base before they are stable.
 		spawnGraceUntil = os.clock() + GameConfig.World.SpawnGraceSeconds

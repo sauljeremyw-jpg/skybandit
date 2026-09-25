@@ -144,6 +144,8 @@ Config: `GameConfig.World.HomePad = { ImpulseH = 90, ImpulseV = 60, LaunchSecond
 - **Studio data persist**: `PlayerData` now tries the live DataStore in Studio (pcall); warns and falls back to Mock only if API is unreachable. `profile:Save()` added before `EndSession()` in PlayerRemoving. `game:BindToClose` saves and ends all active profiles on server shutdown. **Prerequisite**: Game Settings → Security → Studio Access to API Services must be on for live persistence.
 - **Dive look-down feel**: `GameConfig.Flight.DiveLookDownY = -0.35`, `DiveLookDownSteerMult = 2`. When `look.Y ≤ -0.35`, DiveExchangeRate horizontal conversion is skipped (downward speed stays downward) and camera-steer alpha doubles so velocity tracks the steep dive quickly. Outbound magnet and HomePad launch window unchanged.
 
+- **Island hover fix**: `islandUnder()` rewired — always applies sink assist (vy ≤ -45) the moment the character is in the flat radius; adds `timeOverIsland` accumulator that force-lands after `IslandLandSeconds` (1.5 s); land-trigger threshold lowered to `groundTop + IslandLandRadius` (= origin.Y+14). PlatformStand now set every frame from `flying()` so Grounded always clears it. Constants in GameConfig.World.
+
 ## Still not launch
 
 - No Studio playtest yet. The 7 Day-1 checks and the two flight/heist tests have not been run in Roblox.
