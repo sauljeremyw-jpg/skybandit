@@ -131,19 +131,21 @@ local function islandUnder(dt: number): Vector3?
 			if origin then
 				local flat = Vector3.new(state.position.X - origin.X, 0, state.position.Z - origin.Z)
 				if flat.Magnitude <= GameConfig.World.IslandRadius - 4 then
-					-- Only count toward the time-based force-land when the player is
-					-- slow / hovering.  Fast transit passes (e.g. tier-2 crossing
-					-- Meadowrock radius en route to Thornspire) must not accumulate.
-					-- Altitude-based trigger fires regardless of speed.
+					-- Altitude trigger removed: it fired on transit passes (player at
+					-- ~130 crosses Meadowrock trigger=142 and got force-landed mid-path
+					-- even with angle=65 clearance).  Raising LAE shifts both player
+					-- altitude and the trigger proportionally — margin unchanged.
+					-- Time-only force-land: slow/hovering players (< IslandLandSpeedThreshold)
+					-- accumulate time and land after IslandLandSeconds (2.5 s).
+					-- Fast transits (≥50 studs/s, chord=115, ~1.6-1.9 s) never accumulate.
+					-- Physical landing via root.Touched handles surface contact at any speed.
 					local horizSpeed = Vector3.new(state.velocity.X, 0, state.velocity.Z).Magnitude
 					if horizSpeed < GameConfig.World.IslandLandSpeedThreshold then
 						timeOverIsland += dt
 					end
 					local groundTop = origin.Y + GameConfig.World.IslandGroundHeight / 2
 					local landY = groundTop + GameConfig.World.CharacterRootHeight
-					if state.position.Y <= groundTop + GameConfig.World.IslandLandRadius
-						or timeOverIsland >= GameConfig.World.IslandLandSeconds
-					then
+					if timeOverIsland >= GameConfig.World.IslandLandSeconds then
 						return Vector3.new(origin.X + flat.X, landY, origin.Z + flat.Z)
 					end
 					return nil

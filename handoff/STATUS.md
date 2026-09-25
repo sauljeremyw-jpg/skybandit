@@ -67,6 +67,12 @@ Rebuild: `rojo serve` → Studio Rojo plugin → **File → Save As → skybandi
 
 ---
 
+## 2026-09-25 afternoon session
+
+- **Thornspire altitude-trigger fix**: `islandUnder()` altitude check (`Y ≤ groundTop + IslandLandRadius`) fired on transit passes at any speed — raising `LaunchEdgeAltitude` shifts both the player altitude and the trigger proportionally, so the margin is unchanged. Removed the altitude trigger entirely. Now: fast transits (≥50 studs/s through 115-stud Meadowrock chord = 1.6–1.9 s < `IslandLandSeconds=2.5`) never accumulate; slow/hovering players (<50 studs/s) still get force-landed by the time gate; physical `root.Touched` handles normal surface landings at any speed.
+- **"poor" upgrade button fix**: `shop:requestSnapshot` Net handler + client pull at `Hud.start()` end ensures `perchSlotsLevel` is current before any button click (fixes timing race where `PlayerData.onLoaded` snapshot fired before client listener was registered).
+- **Base elevation**: `LaunchEdgeAltitude` 120→160, `HomePad.ImpulseV` 60→80.
+
 ## 2026-09-25 morning session (continued)
 
 - **Angular separation fix**: `IslandAngleStepDegrees` 37→65. At step=37, path to Thornspire (angle 74°) passed only 49.6 studs from Meadowrock center (flat radius trigger = 76 studs → clipping by 26 studs). At step=65, Thornspire is at 130° and the path clears Meadowrock by 39.7 studs. Cloudforge (195°) and Stormgate (260°) clear by 104 studs. Islands are now in clearly distinct directions.
