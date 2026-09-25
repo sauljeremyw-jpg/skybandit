@@ -376,29 +376,38 @@ function FlightController.start()
 	task.spawn(function()
 		local world = workspace:WaitForChild("GeneratedWorld")
 		local base = world:WaitForChild("Base")
-		local pad = base:WaitForChild("JumpPad")
-		if pad:IsA("BasePart") then
+
+		-- Connect launch to every JumpPad strip in the ring.  ChildAdded handles
+		-- parts that replicate after WaitForChild("Base") resolves.
+		local function hookPad(child: Instance)
+			if not child:IsA("BasePart") then return end
+			local pad = child :: BasePart
 			pad.Touched:Connect(function(hit)
 				local character = Players.LocalPlayer.Character
 				if character and hit:IsDescendantOf(character) then
-					-- Ignore touches during spawn grace so a freshly seated character
-					-- cannot be yeeted off Base before they are stable.
-					if os.clock() < spawnGraceUntil then
-						return
-					end
+					if os.clock() < spawnGraceUntil then return end
 					launch()
 				end
 			end)
 			local prompt = pad:FindFirstChild("LaunchPrompt")
 			if prompt and prompt:IsA("ProximityPrompt") then
 				prompt.Triggered:Connect(function()
-					if os.clock() < spawnGraceUntil then
-						return
-					end
+					if os.clock() < spawnGraceUntil then return end
 					launch()
 				end)
 			end
 		end
+
+		for _, child in base:GetChildren() do
+			if child.Name == "JumpPad" then
+				hookPad(child)
+			end
+		end
+		base.ChildAdded:Connect(function(child)
+			if child.Name == "JumpPad" then
+				hookPad(child)
+			end
+		end)
 		-- Wire the orange spring (HomePad) on every in-slice island so the player
 		-- can return to Base after a grab regardless of which island they landed on.
 		for _, islandDef in GameConfig.Islands do

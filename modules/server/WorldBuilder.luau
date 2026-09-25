@@ -46,15 +46,28 @@ local function buildBase(parent: Folder)
 	local size = GameConfig.World.BasePlatformSize
 	local altitude = GameConfig.World.LaunchEdgeAltitude
 	local platform = part("Platform", size, CFrame.new(0, altitude, 0), Color3.fromRGB(90, 90, 90), base)
-	local pad = part("JumpPad", Vector3.new(16, 2, 16), CFrame.new(0, altitude + size.Y / 2 + 1, size.Z / 2 - 12), Color3.fromRGB(40, 200, 80), base)
+	-- Full-perimeter launch ring so the player can aim toward any island on
+	-- launch.  Path to Thornspire from the south edge clips Meadowrock (68 studs
+	-- from centre, inside the 76-stud radius); from the west edge it clears by
+	-- 93 studs.  All four strips named "JumpPad" so basePiece + root.Touched
+	-- skip checks stay consistent.
+	local ringW = GameConfig.World.LaunchRingWidth
+	local ringY = altitude + size.Y / 2 + 1
+	local ringColor = Color3.fromRGB(40, 200, 80)
+	-- North, south, east strips: return value not needed (parented inside part()).
+	part("JumpPad", Vector3.new(size.X, 2, ringW), CFrame.new(0, ringY, -size.Z / 2 + ringW / 2), ringColor, base)
+	part("JumpPad", Vector3.new(size.X, 2, ringW), CFrame.new(0, ringY, size.Z / 2 - ringW / 2), ringColor, base)
+	part("JumpPad", Vector3.new(ringW, 2, size.Z - ringW * 2), CFrame.new(size.X / 2 - ringW / 2, ringY, 0), ringColor, base)
+	-- West strip stored so the ProximityPrompt can be attached (Thornspire heading).
+	local padW = part("JumpPad", Vector3.new(ringW, 2, size.Z - ringW * 2), CFrame.new(-size.X / 2 + ringW / 2, ringY, 0), ringColor, base)
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.Name = "LaunchPrompt"
 	prompt.ActionText = "Launch"
-	prompt.ObjectText = "Green pad"
+	prompt.ObjectText = "Green ring"
 	prompt.HoldDuration = 0
 	prompt.MaxActivationDistance = 18
 	prompt.RequiresLineOfSight = false
-	prompt.Parent = pad
+	prompt.Parent = padW
 	local spawn = Instance.new("SpawnLocation")
 	spawn.Name = "SpawnLocation"
 	spawn.Size = Vector3.new(8, 1, 8)
