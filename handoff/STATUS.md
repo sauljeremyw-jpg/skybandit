@@ -11,7 +11,8 @@ No Claude credits, no SkyBandit bots. All commits on this branch.
 |----------|-------|--------|
 | `GameConfig.World.HomePad.ImpulseH` | 70 | outbound-reserved; locked |
 | `GameConfig.World.HomePad.ImpulseV` | 45 | hang-time PASS |
-| `GameConfig.World.HomePad.ReturnImpulseH` | 90 | island→Base reach; last tune pending playtest |
+| `GameConfig.World.HomePad.ReturnImpulseH` | 90 | island→Base horizontal reach |
+| `GameConfig.World.HomePad.ReturnImpulseV` | 60 | island→Base vertical height — FAIL 2026-09-26: ReturnImpulseH=90+ImpulseV=45 fell short vertically; added ReturnImpulseV=60 |
 | `GameConfig.Flight.LiftK` | 0.012 | frozen |
 | `GameConfig.Flight.DragK` | 0.004 | frozen |
 | `GameConfig.Flight.StallAirspeed` | 40 | frozen |
