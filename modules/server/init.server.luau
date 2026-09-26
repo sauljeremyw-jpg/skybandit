@@ -1,13 +1,18 @@
 --!strict
-local Workspace = game:GetService("Workspace")
-Workspace.StreamingEnabled = false
-
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameConfig = require(Shared:WaitForChild("GameConfig"))
 local Types = require(Shared:WaitForChild("Types"))
 local Net = require(Shared:WaitForChild("Net"))
 local WorldBuilder = require(script.WorldBuilder)
+
+-- Block all character auto-loads at the service level.  Characters are loaded
+-- explicitly: initial players get LoadCharacter() after setup; deaths are handled
+-- by Humanoid.Died in WorldBuilder so respawns always go through seat() with
+-- RespawnLocation already armed.  Player.CharacterAutoLoads is per-Player and
+-- does NOT gate the service auto-load; only Players.CharacterAutoLoads does.
+Players.CharacterAutoLoads = false
 
 Net.start()
 WorldBuilder.build()
@@ -24,6 +29,17 @@ FlightService.start()
 EconomyService.start()
 PetService.start()
 HeistService.start()
+
+-- World built, RespawnLocation armed.  Trigger the initial character load.
+-- Deaths are handled by Humanoid.Died in WorldBuilder (CharacterAutoLoads stays false).
+for _, player in Players:GetPlayers() do
+	player:LoadCharacter()
+end
+-- New joiners: arm RespawnLocation (done by WorldBuilder.start PlayerAdded hook)
+-- then load their character.
+Players.PlayerAdded:Connect(function(player: Player)
+	player:LoadCharacter()
+end)
 
 local function pushFlight(player: Player, save: Types.PlayerSave)
 	local aircraft = GameConfig.getAircraft(save.aircraftTier)
@@ -46,6 +62,7 @@ PlayerData.onLoaded(function(player, save)
 		coins = save.coins,
 		aircraftTier = save.aircraftTier,
 		petCount = #save.pets,
+		perchSlotsLevel = save.upgrades.perchSlots,
 	})
 end)
 
@@ -65,6 +82,25 @@ Net.handleFunction("shop:upgrade", function(player, payload)
 	local ok, err = EconomyService.buyUpgrade(player, name)
 	return { ok = ok, err = err }
 end, 20)
+
+-- Client calls this immediately after Hud.start() to get a guaranteed-fresh
+-- snapshot even if the PlayerData.onLoaded / pushFlight events fired before
+-- the client registered its listeners (race with Mock / fast DataStore).
+-- pushFlight is ALSO sent so FlightController.aircraftTier is correct and
+-- the tier-1 Meadowrock magnet does not override tier-2 launches.
+Net.handleFunction("shop:requestSnapshot", function(player)
+	local save = PlayerData.get(player)
+	if save ~= nil then
+		Net.fireClient("save:snapshot", player, {
+			coins = save.coins,
+			aircraftTier = save.aircraftTier,
+			petCount = #save.pets,
+			perchSlotsLevel = save.upgrades.perchSlots,
+		})
+		pushFlight(player, save)
+	end
+	return { ok = true }
+end, 5)
 
 Net.handleFunction("debug:ping", function(_player, _payload)
 	return { ok = true, serverTime = os.time() }

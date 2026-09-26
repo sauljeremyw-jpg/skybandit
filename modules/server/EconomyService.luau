@@ -26,6 +26,7 @@ local function push(player: Player, save: Types.PlayerSave)
 		coins = save.coins,
 		aircraftTier = save.aircraftTier,
 		petCount = #save.pets,
+		perchSlotsLevel = save.upgrades.perchSlots,
 	})
 end
 

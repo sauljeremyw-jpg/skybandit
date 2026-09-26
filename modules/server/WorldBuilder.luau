@@ -46,25 +46,36 @@ local function buildBase(parent: Folder)
 	local size = GameConfig.World.BasePlatformSize
 	local altitude = GameConfig.World.LaunchEdgeAltitude
 	local platform = part("Platform", size, CFrame.new(0, altitude, 0), Color3.fromRGB(90, 90, 90), base)
-	part("WallN", Vector3.new(size.X, 12, 2), CFrame.new(0, altitude + 8, -size.Z / 2), Color3.fromRGB(70, 70, 70), base)
-	part("WallS", Vector3.new(size.X, 12, 2), CFrame.new(0, altitude + 8, size.Z / 2), Color3.fromRGB(70, 70, 70), base)
-	part("WallE", Vector3.new(2, 12, size.Z), CFrame.new(size.X / 2, altitude + 8, 0), Color3.fromRGB(70, 70, 70), base)
-	local pad = part("JumpPad", Vector3.new(16, 2, 16), CFrame.new(0, altitude + size.Y / 2 + 1, size.Z / 2 - 12), Color3.fromRGB(40, 200, 80), base)
+	-- Full-perimeter launch ring so the player can aim toward any island on
+	-- launch.  Path to Thornspire from the south edge clips Meadowrock (68 studs
+	-- from centre, inside the 76-stud radius); from the west edge it clears by
+	-- 93 studs.  All four strips named "JumpPad" so basePiece + root.Touched
+	-- skip checks stay consistent.
+	local ringW = GameConfig.World.LaunchRingWidth
+	local ringY = altitude + size.Y / 2 + 1
+	local ringColor = Color3.fromRGB(40, 200, 80)
+	-- North, south, east strips: return value not needed (parented inside part()).
+	part("JumpPad", Vector3.new(size.X, 2, ringW), CFrame.new(0, ringY, -size.Z / 2 + ringW / 2), ringColor, base)
+	part("JumpPad", Vector3.new(size.X, 2, ringW), CFrame.new(0, ringY, size.Z / 2 - ringW / 2), ringColor, base)
+	part("JumpPad", Vector3.new(ringW, 2, size.Z - ringW * 2), CFrame.new(size.X / 2 - ringW / 2, ringY, 0), ringColor, base)
+	-- West strip stored so the ProximityPrompt can be attached (Thornspire heading).
+	local padW = part("JumpPad", Vector3.new(ringW, 2, size.Z - ringW * 2), CFrame.new(-size.X / 2 + ringW / 2, ringY, 0), ringColor, base)
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.Name = "LaunchPrompt"
 	prompt.ActionText = "Launch"
-	prompt.ObjectText = "Green pad"
+	prompt.ObjectText = "Green ring"
 	prompt.HoldDuration = 0
 	prompt.MaxActivationDistance = 18
 	prompt.RequiresLineOfSight = false
-	prompt.Parent = pad
+	prompt.Parent = padW
 	local spawn = Instance.new("SpawnLocation")
 	spawn.Name = "SpawnLocation"
 	spawn.Size = Vector3.new(8, 1, 8)
 	spawn.CFrame = CFrame.new(0, altitude + size.Y / 2 + 0.5, 0)
 	spawn.Anchored = true
 	spawn.Neutral = true
-	spawn.Duration = 0
+	-- ForceField on respawn so TakeDamage lava cannot loop-kill a respawning character.
+	spawn.Duration = 5
 	spawn.Enabled = true
 	spawn.Parent = base
 	base.PrimaryPart = platform
@@ -84,8 +95,41 @@ local function buildIsland(parent: Folder, def: GameConfig.IslandDef, index: num
 	local beacon = part("Beacon", Vector3.new(4, 24, 4), CFrame.new(origin + Vector3.new(0, 16, 0)), Color3.fromRGB(255, 220, 40), model)
 	beacon.Material = Enum.Material.Neon
 	beacon.CanCollide = false
+	-- Floating name label: BillboardGui always faces the camera so the island
+	-- name is readable from glide distance.  Parented to the Beacon so it sits
+	-- well above the island surface.
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "IslandLabel"
+	billboard.StudsOffset = Vector3.new(0, 16, 0)
+	billboard.Size = UDim2.new(0, 400, 0, 60)
+	billboard.AlwaysOnTop = false
+	billboard.MaxDistance = 2000
+	billboard.Parent = beacon
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Size = UDim2.fromScale(1, 1)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Text = def.name
+	nameLabel.TextColor3 = Color3.new(1, 1, 1)
+	nameLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+	nameLabel.TextStrokeTransparency = 0
+	nameLabel.TextScaled = true
+	nameLabel.Font = Enum.Font.GothamBold
+	nameLabel.Parent = billboard
 	local guardian = part("Guardian", Vector3.new(8, 16, 8), CFrame.new(origin + Vector3.new(20, 10, 0)), Color3.fromRGB(140, 50, 50), model)
 	guardian.CanCollide = false
+	-- Orange spring pad: the island is below Base altitude, so players need a
+	-- launch boost to carry an egg home. Touch or prompt fires launchHome() on
+	-- the client, which redirects velocity toward the origin (Base).
+	local homePad = part("HomePad", Vector3.new(12, 2, 12), CFrame.new(origin + Vector3.new(-20, 3, 0)), Color3.fromRGB(255, 140, 0), model)
+	homePad.Material = Enum.Material.Neon
+	local homePrompt = Instance.new("ProximityPrompt")
+	homePrompt.Name = "LaunchHomePrompt"
+	homePrompt.ActionText = "Return to Base"
+	homePrompt.ObjectText = "Spring Pad"
+	homePrompt.HoldDuration = 0
+	homePrompt.MaxActivationDistance = 18
+	homePrompt.RequiresLineOfSight = false
+	homePrompt.Parent = homePad
 	islandsById[def.id] = model
 	model.ModelStreamingMode = Enum.ModelStreamingMode.Persistent
 	local nestPos = origin + Vector3.new(0, 4, 0)
@@ -102,13 +146,13 @@ local function assertAnchored(instance: Instance)
 end
 
 function WorldBuilder.build()
-	Workspace.StreamingEnabled = false
 	local existing = Workspace:FindFirstChild(ROOT_NAME)
 	if existing then
 		existing:Destroy()
 	end
 	for _, child in Workspace:GetChildren() do
-		if child:IsA("BasePart") then
+		-- Terrain is a BasePart subclass; Roblox forbids Destroy() on it.
+		if child:IsA("BasePart") and not child:IsA("Terrain") then
 			child:Destroy()
 		end
 	end
@@ -141,9 +185,19 @@ function WorldBuilder.build()
 		if character == nil then
 			return
 		end
+		-- ForceField (seat anchor window) blocks TakeDamage.
+		if character:FindFirstChildOfClass("ForceField") ~= nil then
+			return
+		end
+		-- Spawning attribute stays true from seat() start until platform confirmed,
+		-- covering the window after the FF is removed but before grounding is proven.
+		local lavaPlayer = Players:GetPlayerFromCharacter(character)
+		if lavaPlayer ~= nil and lavaPlayer:GetAttribute("Spawning") == true then
+			return
+		end
 		local humanoid = character:FindFirstChildOfClass("Humanoid")
 		if humanoid and humanoid.Health > 0 then
-			humanoid.Health = 0
+			humanoid:TakeDamage(humanoid.MaxHealth)
 		end
 	end)
 end
@@ -165,31 +219,117 @@ local function spawnPad(): SpawnLocation?
 end
 
 local function seat(player: Player, character: Model)
+	-- Spawning=true blocks lava.Touched kills for the entire seat window,
+	-- including after the ForceField is dropped but before platform is confirmed.
+	player:SetAttribute("Spawning", true)
+
+	local ff = Instance.new("ForceField")
+	ff.Visible = false
+	ff.Parent = character
+
 	local root = character:WaitForChild("HumanoidRootPart")
 	if not root:IsA("BasePart") then
+		player:SetAttribute("Spawning", false)
+		ff:Destroy()
 		return
 	end
+
 	local spawn = spawnPad()
-	local cf = if spawn then spawn.CFrame + Vector3.new(0, 4, 0) else CFrame.new(0, GameConfig.World.LaunchEdgeAltitude + 8, 0)
-	local function place()
-		if spawn then
-			player.RespawnLocation = spawn
-		end
-		root.AssemblyLinearVelocity = Vector3.zero
-		root.CFrame = cf
+	if spawn ~= nil then
+		player.RespawnLocation = spawn
 	end
-	place()
+
+	-- Prefer the Platform part top face for precise placement; fall back to SpawnLocation.
+	local platform: BasePart? = nil
+	local world = Workspace:FindFirstChild(ROOT_NAME)
+	if world ~= nil then
+		local base = world:FindFirstChild("Base")
+		if base ~= nil then
+			local p = base:FindFirstChild("Platform")
+			if p ~= nil and p:IsA("BasePart") then
+				platform = p :: BasePart
+			end
+		end
+	end
+	local target: CFrame
+	if platform ~= nil then
+		target = platform.CFrame * CFrame.new(0, platform.Size.Y / 2 + 5, 0)
+	elseif spawn ~= nil then
+		target = spawn.CFrame + Vector3.new(0, 4, 0)
+	else
+		target = CFrame.new(0, GameConfig.World.LaunchEdgeAltitude + 8, 0)
+	end
+
+	local cfg = GameConfig.World.SeatConfig
+
+	local function placeNow()
+		root.Anchored = true
+		root.AssemblyLinearVelocity = Vector3.zero
+		root.AssemblyAngularVelocity = Vector3.zero
+		character:PivotTo(target)
+	end
+
+	placeNow()
+	print(string.format("[seat] %s  after_y=%.0f  target_y=%.0f  pad_y=%.0f",
+		player.Name, root.Position.Y, target.Position.Y,
+		if spawn ~= nil then spawn.Position.Y else -1))
+
 	task.spawn(function()
-		for _ = 1, 40 do
+		-- Anchored hold: let physics settle before releasing.
+		task.wait(cfg.AnchorHoldSeconds)
+		root.Anchored = false
+
+		local rayParams = RaycastParams.new()
+		rayParams.FilterDescendantsInstances = { character }
+		rayParams.FilterType = Enum.RaycastFilterType.Exclude
+		local rayDown = Vector3.new(0, -cfg.RayLength, 0)
+		local baseAlt = GameConfig.World.LaunchEdgeAltitude
+
+		local confirmed = 0
+		local elapsed = 0
+
+		while elapsed < cfg.HardCapSeconds do
+			task.wait(cfg.CheckInterval)
+			elapsed += cfg.CheckInterval
+
 			if root.Parent == nil then
+				player:SetAttribute("Spawning", false)
+				ff:Destroy()
 				return
 			end
-			if root.Position.Y > 70 then
+
+			local onBase = false
+			if root.Position.Y > baseAlt - 10 then
+				local hit = Workspace:Raycast(root.Position, rayDown, rayParams)
+				if hit ~= nil and hit.Instance.Name == "Platform" then
+					onBase = true
+				end
+			end
+
+			if onBase then
+				confirmed += cfg.CheckInterval
+			else
+				confirmed = 0
+				-- Re-home if drifted below safe altitude.
+				if root.Position.Y < baseAlt - 10 then
+					placeNow()
+					task.wait(cfg.AnchorHoldSeconds)
+					root.Anchored = false
+				end
+			end
+
+			if confirmed >= cfg.ConfirmSeconds then
+				player:SetAttribute("Spawning", false)
+				ff:Destroy()
 				return
 			end
-			root.AssemblyLinearVelocity = Vector3.zero
-			root.CFrame = cf
-			task.wait(0.1)
+		end
+
+		-- Hard cap: clear Spawning but keep ForceField for PostCapFF more seconds.
+		player:SetAttribute("Spawning", false)
+		task.wait(cfg.PostCapFF)
+		if ff.Parent ~= nil then
+			ff:Destroy()
 		end
 	end)
 end
@@ -197,6 +337,18 @@ end
 local function hookPlayer(player: Player)
 	player.CharacterAdded:Connect(function(character)
 		seat(player, character)
+		-- CharacterAutoLoads is false (service level); wire up post-death respawn
+		-- explicitly so the next character also goes through seat() with the
+		-- SpawnLocation already armed.
+		local humanoid = character:WaitForChild("Humanoid", 10)
+		if humanoid and humanoid:IsA("Humanoid") then
+			humanoid.Died:Connect(function()
+				task.wait(GameConfig.World.RespawnDelaySeconds)
+				if player.Parent ~= nil then
+					player:LoadCharacter()
+				end
+			end)
+		end
 	end)
 	if player.Character then
 		seat(player, player.Character)
@@ -204,10 +356,20 @@ local function hookPlayer(player: Player)
 end
 
 function WorldBuilder.start()
-	for _, player in Players:GetPlayers() do
+	-- Pre-arm RespawnLocation before any character auto-loads.  Without this,
+	-- a character that dies before seat() runs its WaitForChild yield will
+	-- respawn at Roblox's default position (Y≈0) directly onto the lava.
+	local spawn = spawnPad()
+	local function armPlayer(player: Player)
+		if spawn then
+			player.RespawnLocation = spawn
+		end
 		hookPlayer(player)
 	end
-	Players.PlayerAdded:Connect(hookPlayer)
+	for _, player in Players:GetPlayers() do
+		armPlayer(player)
+	end
+	Players.PlayerAdded:Connect(armPlayer)
 	Players.PlayerRemoving:Connect(function(player)
 		basesByPlayer[player] = nil
 	end)

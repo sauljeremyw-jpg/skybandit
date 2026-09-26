@@ -29,7 +29,9 @@ local loadedListeners: { (Player, Types.PlayerSave) -> () } = {}
 local function defaultSave(): Types.PlayerSave
 	return {
 		schemaVersion = CURRENT_SCHEMA,
-		coins = 0,
+		-- Studio gets a large starting balance so playtesters skip the coin grind.
+		-- Published / production sessions always start at 0.
+		coins = if RunService:IsStudio() then GameConfig.Dev.StartingCoins else 0,
 		aircraftTier = 1,
 		pets = {},
 		upgrades = { perchSlots = 0, incubator = 0, launchPad = 0, vault = 0 },
@@ -95,12 +97,30 @@ local function loadPlayer(player: Player)
 	if store == nil then
 		return
 	end
-	local session = if RunService:IsStudio() then store.Mock else store
-	local profile = session:StartSessionAsync("Player_" .. player.UserId, {
-		Cancel = function()
-			return player.Parent ~= Players
-		end,
-	})
+	-- Use the live DataStore in Studio so coins/pets persist between Stop→Play.
+	-- Fall back to in-memory Mock only if the DataStore API is unreachable.
+	local profile: any
+	if RunService:IsStudio() then
+		local ok, result = pcall(function()
+			return store:StartSessionAsync("Player_" .. player.UserId, {
+				Cancel = function() return player.Parent ~= Players end,
+			})
+		end)
+		if ok and result ~= nil then
+			profile = result
+		else
+			if not ok then
+				warn("[PlayerData] Live DataStore unreachable in Studio. Enable Game Settings → Security → Studio Access to API Services for data persistence between sessions.")
+			end
+			profile = store.Mock:StartSessionAsync("Player_" .. player.UserId, {
+				Cancel = function() return player.Parent ~= Players end,
+			})
+		end
+	else
+		profile = store:StartSessionAsync("Player_" .. player.UserId, {
+			Cancel = function() return player.Parent ~= Players end,
+		})
+	end
 	if profile == nil then
 		player:Kick("Your data is busy on another server. Rejoin in a moment.")
 		return
@@ -143,8 +163,20 @@ function PlayerData.start()
 		local profile = cache[player]
 		if profile then
 			profile.Data.meta.lastSeenUnix = os.time()
+			profile:Save()
 			profile:EndSession()
 			cache[player] = nil
+		end
+	end)
+	game:BindToClose(function()
+		for _, player in Players:GetPlayers() do
+			local profile = cache[player]
+			if profile and profile:IsActive() then
+				profile.Data.meta.lastSeenUnix = os.time()
+				profile:Save()
+				profile:EndSession()
+				cache[player] = nil
+			end
 		end
 	end)
 end

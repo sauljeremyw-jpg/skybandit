@@ -106,9 +106,10 @@ function FlightService.start()
 		return
 	end
 	started = true
+	-- 720/min = 12 Hz headroom over the 10 Hz client send rate (SnapshotHz * 60 + 120).
 	Net.handleEvent("flight:state", function(player, payload)
 		acceptClaim(player, payload)
-	end)
+	end, GameConfig.Net.FlightStateLimitPerMinute)
 	Players.PlayerRemoving:Connect(function(player)
 		positions[player] = nil
 		lastClaimAt[player] = nil
