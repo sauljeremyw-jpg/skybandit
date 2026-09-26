@@ -29,7 +29,9 @@ local loadedListeners: { (Player, Types.PlayerSave) -> () } = {}
 local function defaultSave(): Types.PlayerSave
 	return {
 		schemaVersion = CURRENT_SCHEMA,
-		coins = 0,
+		-- Studio gets a large starting balance so playtesters skip the coin grind.
+		-- Published / production sessions always start at 0.
+		coins = if RunService:IsStudio() then GameConfig.Dev.StartingCoins else 0,
 		aircraftTier = 1,
 		pets = {},
 		upgrades = { perchSlots = 0, incubator = 0, launchPad = 0, vault = 0 },

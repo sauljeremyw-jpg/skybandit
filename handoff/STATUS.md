@@ -98,6 +98,10 @@ Tony rebuilds `skybandit.rbxlx` with `rojo serve` → Studio Rojo plugin → **F
 
 ---
 
+## Dev overrides (Studio only)
+
+`GameConfig.Dev.StartingCoins = 1_000_000` — new profiles in Studio start with 1 M coins so Jeremy can buy aircraft and test without grinding. Production `defaultSave()` starts at 0 (unchanged). Existing real-DataStore saves are never overwritten by `defaultSave()`.
+
 ## Still not launch
 
 - No full end-to-end multi-player test.
