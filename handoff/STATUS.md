@@ -98,6 +98,12 @@ Tony rebuilds `skybandit.rbxlx` with `rojo serve` → Studio Rojo plugin → **F
 
 ---
 
+## 2026-09-26 cuts
+
+- FAIL: Cloudforge too far even at tier-4 (Powered Paraglider). `IslandDistanceFactor` 0.6→0.35 pulls all islands closer. New flat distances: Meadowrock 180 (unchanged), Thornspire 315, Cloudforge 700, Stormgate 1050. `worldBuilder.assertAnchored` checks pass (all < rangeNeeded).
+- Thornspire altitude rises from 64 to 103.3 studs (less drop at shorter distance) — helps the return trip gap drop from 98→58.7 studs.
+- `Dev.StartingCoins` 1e6→1e9 for laptop playtest.
+
 ## Dev overrides (Studio only)
 
 `GameConfig.Dev.StartingCoins = 1_000_000` — new profiles in Studio start with 1 M coins so Jeremy can buy aircraft and test without grinding. Production `defaultSave()` starts at 0 (unchanged). Existing real-DataStore saves are never overwritten by `defaultSave()`.
