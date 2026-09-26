@@ -191,6 +191,12 @@ local function step(dt: number)
 	if root and not correcting and not flying() then
 		state.position = root.Position
 		state.velocity = root.AssemblyLinearVelocity
+		-- Softlock escape: if grounded below safe altitude (lava zone) and
+		-- TakeDamage was blocked by ForceField or Spawning attribute, force-kill
+		-- via Health=0 (direct assignment bypasses both protections).
+		if state.position.Y < 40 then
+			miss(root)
+		end
 	end
 	if correcting then
 		applyCorrection(dt)
@@ -350,11 +356,19 @@ local function launchHome()
 	local homeDir: Vector3 = if flat.Magnitude > 1 then -flat.Unit else -Vector3.zAxis
 	state.mode = "Launched"
 	state.position = root.Position
-	-- ReturnImpulseH / ReturnImpulseV are dedicated return-trip dials.
-	-- ImpulseH / ImpulseV remain outbound-facing so each direction can be
-	-- tuned independently without affecting the other.
-	state.velocity = homeDir * GameConfig.World.HomePad.ReturnImpulseH
-		+ Vector3.new(0, GameConfig.World.HomePad.ReturnImpulseV, 0)
+	-- Blend return impulse by flat distance to Base.
+	-- At ReturnBaseDistance (Meadowrock ≈ 180) use outbound values (gentle).
+	-- At ReturnScaleDistance (Thornspire ≈ 315) and beyond use full return values.
+	-- This prevents Meadowrock's short hop from overshooting Base 2× too high
+	-- while still giving Thornspire and farther islands enough reach.
+	local baseD = GameConfig.World.HomePad.ReturnBaseDistance
+	local scaleD = GameConfig.World.HomePad.ReturnScaleDistance
+	local blend = math.clamp((flat.Magnitude - baseD) / math.max(scaleD - baseD, 1), 0, 1)
+	local impH = GameConfig.World.HomePad.ImpulseH
+		+ (GameConfig.World.HomePad.ReturnImpulseH - GameConfig.World.HomePad.ImpulseH) * blend
+	local impV = GameConfig.World.HomePad.ImpulseV
+		+ (GameConfig.World.HomePad.ReturnImpulseV - GameConfig.World.HomePad.ImpulseV) * blend
+	state.velocity = homeDir * impH + Vector3.new(0, impV, 0)
 	launchedUntil = state.t + GameConfig.World.HomePad.LaunchSeconds
 end
 
@@ -471,7 +485,7 @@ function FlightController.start()
 			if state.t < launchedUntil or not flying() then
 				return
 			end
-			if part:IsDescendantOf(character) or part.Name == "JumpPad" then
+			if part:IsDescendantOf(character) or part.Name == "JumpPad" or part.Name == "HomePad" then
 				return
 			end
 			if state.velocity.Y > 0 then
