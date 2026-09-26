@@ -100,7 +100,7 @@ Tony rebuilds `skybandit.rbxlx` with `rojo serve` → Studio Rojo plugin → **F
 
 ## 2026-09-26 cuts
 
-- FAIL: Cloudforge too far even at tier-4 (Powered Paraglider). `IslandDistanceFactor` 0.6→0.35 pulls all islands closer. New flat distances: Meadowrock 180 (unchanged), Thornspire 315, Cloudforge 700, Stormgate 1050. `worldBuilder.assertAnchored` checks pass (all < rangeNeeded).
+- FAIL: Cloudforge too far even at tier-4. `IslandDistanceFactor` 0.6→0.35 (islands closer). Turboprop+ can reach Cloudforge horizontally but **landed under island in lava**: altitude trigger was removed to fix old Meadowrock transit (step=37); with step=65 all paths clear intermediate islands by ≥115 studs, so trigger is safe to restore. Re-added `Y ≤ groundTop+IslandLandRadius` in `islandUnder()`. Fast players now snap to island surface instead of falling through deck. pulls all islands closer. New flat distances: Meadowrock 180 (unchanged), Thornspire 315, Cloudforge 700, Stormgate 1050. `worldBuilder.assertAnchored` checks pass (all < rangeNeeded).
 - Thornspire altitude rises from 64 to 103.3 studs (less drop at shorter distance) — helps the return trip gap drop from 98→58.7 studs.
 - `Dev.StartingCoins` 1e6→1e9 for laptop playtest.
 
