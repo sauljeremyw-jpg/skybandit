@@ -224,7 +224,9 @@ local function step(dt: number)
 			speed = state.velocity.Magnitude
 		end
 		local liftForce = math.min(GameConfig.Flight.LiftK * speed * speed + lift, GameConfig.Flight.LiftCap)
-		local dragForce = GameConfig.Flight.DragK * speed * speed
+		local currentAircraft = GameConfig.getAircraft(aircraftTier)
+		local dragMult = if currentAircraft ~= nil then currentAircraft.dragMult else 1
+		local dragForce = GameConfig.Flight.DragK * dragMult * speed * speed
 		if speed < GameConfig.Flight.StallAirspeed and state.mode == "Gliding" then
 			state.mode = "Stalled"
 		elseif speed >= GameConfig.Flight.StallAirspeed and state.mode ~= "Grounded" then
