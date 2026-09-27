@@ -10,13 +10,13 @@ GameConfig.Data = { StoreName = "PlayerData_v1", SchemaVersion = 1, AutosaveSeco
 GameConfig.Economy = { BaseEggBounty = 250, PetBaseIncome = 0.15, LiftToStuds = 1.5, CarrySpeedPenalty = 0.85, InterceptBountyPct = 0.25, IncomeSoftCapFactor = 0.35, InterceptConsolationRarityDown = 1, MinRunSeconds = 8, MaxCoins = 2 ^ 53 }
 GameConfig.Aircraft = {
 	{ tier = 1, name = "Bedsheet Chute",     range = 400,     cost = 0,           dragMult = 1.00 },
-	{ tier = 2, name = "Patched Kite",        range = 900,     cost = 2_500,       dragMult = 0.92 },
-	{ tier = 3, name = "Hang Glider",         range = 2_000,   cost = 40_000,      dragMult = 0.84 },
-	{ tier = 4, name = "Powered Paraglider",  range = 4_500,   cost = 600_000,     dragMult = 0.76 },
-	{ tier = 5, name = "Ultralight",          range = 10_000,  cost = 3_000_000,   dragMult = 0.60 },
-	{ tier = 6, name = "Prop Plane",          range = 22_000,  cost = 15_000_000,  dragMult = 0.52 },
-	{ tier = 7, name = "Turboprop",           range = 50_000,  cost = 75_000_000,  dragMult = 0.44 },
-	{ tier = 8, name = "Jet",                 range = 120_000, cost = 400_000_000, dragMult = 0.36 },
+	{ tier = 2, name = "Patched Kite",        range = 900,     cost = 2_500,       dragMult = 0.70 },
+	{ tier = 3, name = "Hang Glider",         range = 2_000,   cost = 40_000,      dragMult = 0.34 },
+	{ tier = 4, name = "Powered Paraglider",  range = 4_500,   cost = 600_000,     dragMult = 0.28 },
+	{ tier = 5, name = "Ultralight",          range = 10_000,  cost = 3_000_000,   dragMult = 0.24 },
+	{ tier = 6, name = "Prop Plane",          range = 22_000,  cost = 15_000_000,  dragMult = 0.20 },
+	{ tier = 7, name = "Turboprop",           range = 50_000,  cost = 75_000_000,  dragMult = 0.17 },
+	{ tier = 8, name = "Jet",                 range = 120_000, cost = 400_000_000, dragMult = 0.14 },
 } :: { AircraftDef }
 GameConfig.MaxTier = 8
 GameConfig.Islands = {
