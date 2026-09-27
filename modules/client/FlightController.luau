@@ -260,39 +260,6 @@ local function step(dt: number)
 			end
 			state.position += state.velocity * dt
 		end
-		local meadow = GameConfig.islandWorldPosition("meadowrock")
-		-- Suppress the outbound magnet when carrying: the player has the egg and
-		-- needs to fly home; pulling back toward Meadowrock would fight the return.
-		if meadow and aircraftTier == 1 and not carrying then
-			local toward = Vector3.new(meadow.X - state.position.X, 0, meadow.Z - state.position.Z)
-			if toward.Magnitude > 20 then
-				local horiz = Vector3.new(state.velocity.X, 0, state.velocity.Z)
-				local speed = math.max(horiz.Magnitude, 70)
-				local aimed = toward.Unit * speed
-				local blend = math.clamp(dt * 3, 0, 0.45)
-				horiz = horiz:Lerp(aimed, blend)
-				state.velocity = Vector3.new(horiz.X, state.velocity.Y, horiz.Z)
-			end
-		end
-		-- While carrying and outside Base footprint, soft-aim horizontal toward Base
-		-- (same blend as Meadowrock magnet). Prevents post-LaunchSeconds camera veer
-		-- from parking high-tier craft beside Base with lift stuck on.
-		if carrying then
-			local half = GameConfig.World.BasePlatformSize.X / 2
-			local halfZ = GameConfig.World.BasePlatformSize.Z / 2
-			if math.abs(state.position.X) > half or math.abs(state.position.Z) > halfZ then
-				local flatHome = Vector3.new(state.position.X, 0, state.position.Z)
-				if flatHome.Magnitude > 1 then
-					local toward = -flatHome
-					local horiz = Vector3.new(state.velocity.X, 0, state.velocity.Z)
-					local speedH = math.max(horiz.Magnitude, 70)
-					local aimed = toward.Unit * speedH
-					local blendH = math.clamp(dt * 3, 0, 0.45)
-					horiz = horiz:Lerp(aimed, blendH)
-					state.velocity = Vector3.new(horiz.X, state.velocity.Y, horiz.Z)
-				end
-			end
-		end
 	end
 	state.altitude = state.position.Y
 	if root and flying() and not correcting and state.t >= launchedUntil then
