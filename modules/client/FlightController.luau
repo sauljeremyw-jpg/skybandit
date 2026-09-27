@@ -126,6 +126,9 @@ local function baseUnder(dt: number): Vector3?
 		if horizSpeed < GameConfig.World.IslandLandSpeedThreshold then
 			timeOverBase += dt
 		end
+		if state.t >= launchedUntil and state.position.Y <= landY + 14 then
+			return Vector3.new(state.position.X, landY, state.position.Z)
+		end
 		if timeOverBase >= GameConfig.World.BaseLandSeconds then
 			return Vector3.new(state.position.X, landY, state.position.Z)
 		end
@@ -152,6 +155,9 @@ local function islandUnder(dt: number, previousY: number): Vector3?
 					local landY = groundTop + GameConfig.World.CharacterRootHeight
 					-- Crossing snap: player passed through the deck this frame.
 					if previousY > groundTop and state.position.Y <= groundTop then
+						return Vector3.new(origin.X + flat.X, landY, origin.Z + flat.Z)
+					end
+					if state.t >= launchedUntil and state.position.Y <= landY + 14 then
 						return Vector3.new(origin.X + flat.X, landY, origin.Z + flat.Z)
 					end
 					if timeOverIsland >= GameConfig.World.IslandLandSeconds then
@@ -222,6 +228,11 @@ local function step(dt: number)
 			state.mode = "Gliding"
 		end
 		if state.mode == "Gliding" or state.mode == "Launched" then
+			local over = state.position.Y - GameConfig.Flight.CruiseAltitude
+			if over > 0 then
+				local fade = math.clamp(1 - over / GameConfig.Flight.CeilingSoft, 0, 1)
+				liftForce *= fade
+			end
 			local up = Vector3.yAxis * liftForce
 			local drag = if speed > 0 then -state.velocity.Unit * dragForce else Vector3.zero
 			local gravity = Vector3.yAxis * -GRAVITY
@@ -247,6 +258,38 @@ local function step(dt: number)
 			end
 			local previous = state.position
 			state.position += state.velocity * dt
+			-- Over-pad sink: push down when lingering high above a landing surface.
+			if state.t >= launchedUntil and flying() then
+				local sinkX = math.abs(state.position.X)
+				local sinkZ = math.abs(state.position.Z)
+				local halfPad = GameConfig.World.BasePlatformSize.X / 2
+				local halfPadZ = GameConfig.World.BasePlatformSize.Z / 2
+				local platformTop = GameConfig.World.LaunchEdgeAltitude + GameConfig.World.BasePlatformSize.Y / 2
+				local sank = false
+				if sinkX <= halfPad and sinkZ <= halfPadZ then
+					if state.position.Y > platformTop + 8 then
+						state.velocity = Vector3.new(state.velocity.X * 0.90, math.min(state.velocity.Y, -55), state.velocity.Z * 0.90)
+						sank = true
+					end
+				end
+				if not sank then
+					for _, island in GameConfig.Islands do
+						if island.inSlice then
+							local orig = GameConfig.islandWorldPosition(island.id)
+							if orig then
+								local iflat = Vector3.new(state.position.X - orig.X, 0, state.position.Z - orig.Z)
+								if iflat.Magnitude <= GameConfig.World.IslandRadius - 4 then
+									local iGroundTop = orig.Y + GameConfig.World.IslandGroundHeight / 2
+									if state.position.Y > iGroundTop + 8 then
+										state.velocity = Vector3.new(state.velocity.X * 0.90, math.min(state.velocity.Y, -55), state.velocity.Z * 0.90)
+									end
+									break
+								end
+							end
+						end
+					end
+				end
+			end
 			if root and flying() then
 				local sweepParams = RaycastParams.new()
 				sweepParams.FilterType = Enum.RaycastFilterType.Exclude
