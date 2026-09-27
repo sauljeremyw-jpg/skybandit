@@ -45,7 +45,7 @@ ALLOWED = {
 
 REQUIRED_NUMBERS = {
     "BaseEggBounty = 250",
-    "MinRunSeconds = 8",
+    "MinRunSeconds = 3",
     "MaxPayloadEntries = 200",
     "DefaultLimitPerMinute = 60",
     "LiftK = 0.012",

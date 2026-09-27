@@ -1,5 +1,7 @@
 # Status 2026-09-22
 
+MinRunSeconds 8→3 CLEAR 2026-09-27
+
 Built in this chat. No Claude credits and no SkyBandit bots used.
 
 ## Landed

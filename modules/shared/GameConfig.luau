@@ -7,7 +7,7 @@ export type MutationDef = { mutation: Types.Mutation, weight: number, incomeMult
 export type UpgradeDef = { baseCount: number?, baseSeconds: number?, baseAltitude: number?, minSeconds: number?, maxSeconds: number?, maxLevel: number, costBase: number, costMult: number, perLevel: number? }
 local GameConfig = {}
 GameConfig.Data = { StoreName = "PlayerData_v1", SchemaVersion = 1, AutosaveSeconds = 60 }
-GameConfig.Economy = { BaseEggBounty = 250, PetBaseIncome = 0.15, LiftToStuds = 1.5, CarrySpeedPenalty = 0.85, InterceptBountyPct = 0.25, IncomeSoftCapFactor = 0.35, InterceptConsolationRarityDown = 1, MinRunSeconds = 8, MaxCoins = 2 ^ 53 }
+GameConfig.Economy = { BaseEggBounty = 250, PetBaseIncome = 0.15, LiftToStuds = 1.5, CarrySpeedPenalty = 0.85, InterceptBountyPct = 0.25, IncomeSoftCapFactor = 0.35, InterceptConsolationRarityDown = 1, MinRunSeconds = 3, MaxCoins = 2 ^ 53 }
 GameConfig.Aircraft = {
 	{ tier = 1, name = "Bedsheet Chute", range = 400, cost = 0 },
 	{ tier = 2, name = "Patched Kite", range = 900, cost = 2_500 },
