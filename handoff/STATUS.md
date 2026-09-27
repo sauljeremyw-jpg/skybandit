@@ -108,6 +108,10 @@ Tony rebuilds `skybandit.rbxlx` with `rojo serve` → Studio Rojo plugin → **F
 
 `GameConfig.Dev.StartingCoins = 1_000_000` — new profiles in Studio start with 1 M coins so Jeremy can buy aircraft and test without grinding. Production `defaultSave()` starts at 0 (unchanged). Existing real-DataStore saves are never overwritten by `defaultSave()`.
 
+## Flight PASS 2026-09-26 — tip 497d64c
+
+Cuts A–H locked. Under-deck clip and high-altitude park fixed. Do NOT retune LiftK / DragK / dragMult table / HomePad return impulses without Grok sign-off.
+
 ## Still not launch
 
 - No full end-to-end multi-player test.

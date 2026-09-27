@@ -94,7 +94,6 @@ local function acceptClaim(player: Player, payload: any)
 	local flat = Vector3.new(corrected.X, 0, corrected.Z)
 	local range = FlightService.getRange(player)
 	if flat.Magnitude > range and range > 0 then
-		print("[flight-clamp]", player.Name, "tier", tiers[player], "range", range, "flat", flat.Magnitude)
 		local clamped = flat.Unit * range
 		corrected = Vector3.new(clamped.X, corrected.Y, clamped.Z)
 	end
