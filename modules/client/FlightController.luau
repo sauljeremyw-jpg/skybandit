@@ -32,6 +32,7 @@ local launchedUntil = 0
 local spawnGraceUntil = 0
 local timeOverIsland = 0
 local timeOverBase = 0
+local flightPrintPending = false
 
 local function characterRoot(): BasePart?
 	local character = Players.LocalPlayer.Character
@@ -89,6 +90,7 @@ end
 local function landOn(root: BasePart, point: Vector3)
 	timeOverIsland = 0
 	timeOverBase = 0
+	flightPrintPending = false
 	state.mode = "Grounded"
 	state.velocity = Vector3.zero
 	state.position = point
@@ -248,7 +250,11 @@ local function step(dt: number)
 					end
 				end
 			end
-			local terminal = GameConfig.terminalSpeed(carrying)
+			local terminal = GameConfig.terminalSpeed(carrying, dragMult)
+			if flightPrintPending then
+				flightPrintPending = false
+				print("[flight]", "tier", aircraftTier, "dragMult", dragMult, "terminal", terminal)
+			end
 			if state.velocity.Magnitude > terminal then
 				state.velocity = state.velocity.Unit * terminal
 			end
@@ -345,6 +351,7 @@ local function launch()
 	end
 	state.velocity = horizontal.Unit * 90 + Vector3.new(0, -30, 0)
 	launchedUntil = state.t + 1.2
+	flightPrintPending = true
 end
 
 local function launchHome()
@@ -372,6 +379,7 @@ local function launchHome()
 		+ (GameConfig.World.HomePad.ReturnImpulseV - GameConfig.World.HomePad.ImpulseV) * blend
 	state.velocity = homeDir * impH + Vector3.new(0, impV, 0)
 	launchedUntil = state.t + GameConfig.World.HomePad.LaunchSeconds
+	flightPrintPending = true
 end
 
 function FlightController.start()
