@@ -62,7 +62,7 @@ GameConfig.Dev = { StartingCoins = 1_000_000_000 }
 GameConfig.Net = { MaxPayloadBytes = 4_096, MaxPayloadEntries = 200, DefaultLimitPerMinute = 60, DropStrikeWindowSeconds = 10, DropStrikeThreshold = 10, FlightStateLimitPerMinute = 720 }
 GameConfig.Flight = { LiftK = 0.012, LiftCap = 200, DragK = 0.004, DiveExchangeRate = 2.5, StallAirspeed = 40, CorrectionLerpSeconds = 0.2, MaxDt = 0.05, SnapshotHz = 10, DiveLookDownY = -0.35, DiveLookDownSteerMult = 2, LandRayLength = 12, LandRayTrigger = 8 }
 GameConfig.Intercept = { Radius = 25, PairCooldownSeconds = 30, NewPlayerImmunitySeconds = 30 * 60 }
-GameConfig.World = { BaseSpacing = 600, BasePlatformSize = Vector3.new(180, 4, 180), LaunchEdgeAltitude = 160, IslandRadius = 80, IslandDistanceFactor = 0.35, IslandAngleStepDegrees = 65, NestGrabRadius = 80, NestRespawnSeconds = 15, SpawnGraceSeconds = 3, RespawnDelaySeconds = 3, IslandGroundHeight = 4, IslandLandRadius = 100, IslandLandSeconds = 2.5, IslandLandSpeedThreshold = 50, BaseLandSeconds = 2, LaunchRingWidth = 8, CharacterRootHeight = 3, HomePad = { ImpulseH = 70, ImpulseV = 45, LaunchSeconds = 1.5, ReturnImpulseH = 105, ReturnImpulseV = 50, ReturnBaseDistance = 180, ReturnScaleDistance = 315, ReturnFarDistance = 700, ReturnFarImpulseH = 145, ReturnFarImpulseV = 58 }, SeatConfig = { AnchorHoldSeconds = 0.35, ConfirmSeconds = 0.5, HardCapSeconds = 6, PostCapFF = 2, CheckInterval = 0.1, RayLength = 6 } }
+GameConfig.World = { BaseSpacing = 600, BasePlatformSize = Vector3.new(180, 4, 180), LaunchEdgeAltitude = 160, IslandRadius = 80, IslandDistanceFactor = 0.35, IslandAngleStepDegrees = 65, NestGrabRadius = 80, NestRespawnSeconds = 15, SpawnGraceSeconds = 3, RespawnDelaySeconds = 3, IslandGroundHeight = 4, IslandLandRadius = 100, IslandLandSeconds = 2.5, IslandLandSpeedThreshold = 50, BaseLandSeconds = 2, LaunchRingWidth = 8, CharacterRootHeight = 3, HomePad = { ImpulseH = 70, ImpulseV = 45, LaunchSeconds = 1.5, ReturnImpulseH = 88, ReturnImpulseV = 42, ReturnBaseDistance = 180, ReturnScaleDistance = 315, ReturnFarDistance = 700, ReturnFarImpulseH = 145, ReturnFarImpulseV = 58 }, SeatConfig = { AnchorHoldSeconds = 0.35, ConfirmSeconds = 0.5, HardCapSeconds = 6, PostCapFF = 2, CheckInterval = 0.1, RayLength = 6 } }
 function GameConfig.terminalSpeed(carrying: boolean, dragMult: number?): number
 	local mult = dragMult
 	if mult == nil or mult <= 0 then
@@ -113,8 +113,8 @@ function GameConfig.islandWorldPosition(id: string, sliceIndex: number?): Vector
 	end
 	local distance = if index == 1 then 180 else island.rangeNeeded * GameConfig.World.IslandDistanceFactor
 	local angle = if index == 1 then math.rad(90) else math.rad(GameConfig.World.IslandAngleStepDegrees * index)
-	local drop = math.min(distance * 0.18, GameConfig.World.LaunchEdgeAltitude * 0.6)
-	local altitude = GameConfig.World.LaunchEdgeAltitude - drop
+	local drop = math.min(distance * 0.10, GameConfig.World.LaunchEdgeAltitude * 0.35)
+	local altitude = math.max(GameConfig.World.LaunchEdgeAltitude - drop, 110)
 	return Vector3.new(math.cos(angle) * distance, altitude, math.sin(angle) * distance)
 end
 function GameConfig.getRarity(rarity)
