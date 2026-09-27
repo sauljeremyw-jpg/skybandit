@@ -137,27 +137,23 @@ end
 
 -- dt is accumulated to force a land after IslandLandSeconds so lift cannot
 -- keep the player hovering above the island indefinitely.
-local function islandUnder(dt: number): Vector3?
+local function islandUnder(dt: number, previousY: number): Vector3?
 	for _, island in GameConfig.Islands do
 		if island.inSlice then
 			local origin = GameConfig.islandWorldPosition(island.id)
 			if origin then
 				local flat = Vector3.new(state.position.X - origin.X, 0, state.position.Z - origin.Z)
 				if flat.Magnitude <= GameConfig.World.IslandRadius - 4 then
-					-- Altitude trigger removed: it fired on transit passes (player at
-					-- ~130 crosses Meadowrock trigger=142 and got force-landed mid-path
-					-- even with angle=65 clearance).  Raising LAE shifts both player
-					-- altitude and the trigger proportionally — margin unchanged.
-					-- Time-only force-land: slow/hovering players (< IslandLandSpeedThreshold)
-					-- accumulate time and land after IslandLandSeconds (2.5 s).
-					-- Fast transits (≥50 studs/s, chord=115, ~1.6-1.9 s) never accumulate.
-					-- Physical landing via root.Touched handles surface contact at any speed.
 					local horizSpeed = Vector3.new(state.velocity.X, 0, state.velocity.Z).Magnitude
 					if horizSpeed < GameConfig.World.IslandLandSpeedThreshold then
 						timeOverIsland += dt
 					end
 					local groundTop = origin.Y + GameConfig.World.IslandGroundHeight / 2
 					local landY = groundTop + GameConfig.World.CharacterRootHeight
+					-- Crossing snap: player passed through the deck this frame.
+					if previousY > groundTop and state.position.Y <= groundTop then
+						return Vector3.new(origin.X + flat.X, landY, origin.Z + flat.Z)
+					end
 					if timeOverIsland >= GameConfig.World.IslandLandSeconds then
 						return Vector3.new(origin.X + flat.X, landY, origin.Z + flat.Z)
 					end
@@ -193,6 +189,7 @@ local function step(dt: number)
 			miss(root)
 		end
 	end
+	local stepPreviousY = state.position.Y
 	if correcting then
 		applyCorrection(dt)
 	elseif flying() then
@@ -203,18 +200,15 @@ local function step(dt: number)
 		end
 		local speed = state.velocity.Magnitude
 		if speed > 0.01 then
-			-- While carrying within the HomePad launch window, hold the homeward
-			-- velocity so camera drift cannot veer the player away from Base before
-			-- they clear the altitude deficit.  Outbound (not carrying) steers freely.
 			if not (carrying and state.t < launchedUntil) then
-				local wish = look.Unit * speed
-				-- Steer harder toward camera when looking steeply down so velocity
-				-- tracks the dive direction quickly for a precise vertical landing.
-				local steerMult = if look.Y <= GameConfig.Flight.DiveLookDownY
-					then GameConfig.Flight.DiveLookDownSteerMult
-					else 1
-				local alpha = math.clamp(dt * GameConfig.Flight.SnapshotHz * steerMult, 0, 1)
-				state.velocity = state.velocity:Lerp(wish, alpha)
+				local flatLook = Vector3.new(look.X, 0, look.Z)
+				if flatLook.Magnitude > 0.01 then
+					local wish = flatLook.Unit * speed
+					if look.Y <= GameConfig.Flight.DiveLookDownY then
+						wish = wish + Vector3.new(0, math.max(look.Y, -0.25) * speed, 0)
+					end
+					state.velocity = state.velocity:Lerp(wish, math.clamp(dt * GameConfig.Flight.SnapshotHz, 0, 1))
+				end
 			end
 			speed = state.velocity.Magnitude
 		end
@@ -251,12 +245,26 @@ local function step(dt: number)
 			if state.velocity.Magnitude > terminal then
 				state.velocity = state.velocity.Unit * terminal
 			end
+			local previous = state.position
 			state.position += state.velocity * dt
+			if root and flying() then
+				local sweepParams = RaycastParams.new()
+				sweepParams.FilterType = Enum.RaycastFilterType.Exclude
+				local character = root.Parent
+				if character then
+					sweepParams.FilterDescendantsInstances = { character }
+				end
+				local delta = state.position - previous
+				local sweepHit = workspace:Raycast(previous, delta + Vector3.new(0, -2, 0), sweepParams)
+				if sweepHit and sweepHit.Instance:FindFirstAncestor("GeneratedWorld") ~= nil and sweepHit.Position.Y >= 40 then
+					landOn(root, Vector3.new(sweepHit.Position.X, sweepHit.Position.Y + GameConfig.World.CharacterRootHeight, sweepHit.Position.Z))
+				end
+			end
 		end
 	end
 	state.altitude = state.position.Y
 	if root and flying() and not correcting and state.t >= launchedUntil then
-		local spot = islandUnder(dt)
+		local spot = islandUnder(dt, stepPreviousY)
 		if spot then
 			landOn(root, spot)
 		else
@@ -328,7 +336,8 @@ local function launch()
 	if horizontal.Magnitude < 0.25 then
 		horizontal = Vector3.zAxis
 	end
-	state.velocity = horizontal.Unit * 90 + Vector3.new(0, -30, 0)
+	state.velocity = horizontal.Unit * GameConfig.World.HomePad.OutboundImpulseH
+		+ Vector3.new(0, GameConfig.World.HomePad.OutboundImpulseV, 0)
 	launchedUntil = state.t + 1.2
 	flightPrintPending = true
 end
