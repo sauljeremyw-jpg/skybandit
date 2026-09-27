@@ -4,6 +4,7 @@ Built in this chat. No Claude credits and no SkyBandit bots used.
 
 ## Landed
 
+- PC dive/aileron keys CLEAR 2026-09-27 (Down/Left/Right; DiveKeyAccel 85 DiveKeyLiftMult 0 AileronYawDegPerSec 90).
 - Day-1 foundation, FlightController, HeistService, static review gate (green)
 - Real MadStudio ProfileStore vendored. PlayerData uses `ProfileStore.New` and session lock. Saves persist.
 - FlightService rejects claims that outrun `terminalSpeed` or the aircraft range, and sends a position correction.
