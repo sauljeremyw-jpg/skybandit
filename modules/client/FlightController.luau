@@ -396,6 +396,15 @@ local function launchHome()
 		+ (GameConfig.World.HomePad.ReturnImpulseH - GameConfig.World.HomePad.ImpulseH) * blend
 	local impV = GameConfig.World.HomePad.ImpulseV
 		+ (GameConfig.World.HomePad.ReturnImpulseV - GameConfig.World.HomePad.ImpulseV) * blend
+	local farD = GameConfig.World.HomePad.ReturnFarDistance
+	if flat.Magnitude >= farD then
+		local farSpan = 1050 - farD
+		local farT = math.clamp((flat.Magnitude - farD) / math.max(farSpan, 1), 0, 1)
+		impH = GameConfig.World.HomePad.ReturnImpulseH
+			+ (GameConfig.World.HomePad.ReturnFarImpulseH - GameConfig.World.HomePad.ReturnImpulseH) * farT
+		impV = GameConfig.World.HomePad.ReturnImpulseV
+			+ (GameConfig.World.HomePad.ReturnFarImpulseV - GameConfig.World.HomePad.ReturnImpulseV) * farT
+	end
 	state.velocity = homeDir * impH + Vector3.new(0, impV, 0)
 	launchedUntil = state.t + GameConfig.World.HomePad.LaunchSeconds
 	flightPrintPending = true

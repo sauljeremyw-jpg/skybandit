@@ -12,11 +12,11 @@ GameConfig.Aircraft = {
 	{ tier = 1, name = "Bedsheet Chute",     range = 400,     cost = 0,           dragMult = 1.00 },
 	{ tier = 2, name = "Patched Kite",        range = 900,     cost = 2_500,       dragMult = 0.70 },
 	{ tier = 3, name = "Hang Glider",         range = 2_000,   cost = 40_000,      dragMult = 0.34 },
-	{ tier = 4, name = "Powered Paraglider",  range = 4_500,   cost = 600_000,     dragMult = 0.28 },
-	{ tier = 5, name = "Ultralight",          range = 10_000,  cost = 3_000_000,   dragMult = 0.24 },
-	{ tier = 6, name = "Prop Plane",          range = 22_000,  cost = 15_000_000,  dragMult = 0.20 },
-	{ tier = 7, name = "Turboprop",           range = 50_000,  cost = 75_000_000,  dragMult = 0.17 },
-	{ tier = 8, name = "Jet",                 range = 120_000, cost = 400_000_000, dragMult = 0.14 },
+	{ tier = 4, name = "Powered Paraglider",  range = 4_500,   cost = 600_000,     dragMult = 0.20 },
+	{ tier = 5, name = "Ultralight",          range = 10_000,  cost = 3_000_000,   dragMult = 0.17 },
+	{ tier = 6, name = "Prop Plane",          range = 22_000,  cost = 15_000_000,  dragMult = 0.14 },
+	{ tier = 7, name = "Turboprop",           range = 50_000,  cost = 75_000_000,  dragMult = 0.12 },
+	{ tier = 8, name = "Jet",                 range = 120_000, cost = 400_000_000, dragMult = 0.10 },
 } :: { AircraftDef }
 GameConfig.MaxTier = 8
 GameConfig.Islands = {
@@ -62,7 +62,7 @@ GameConfig.Dev = { StartingCoins = 1_000_000_000 }
 GameConfig.Net = { MaxPayloadBytes = 4_096, MaxPayloadEntries = 200, DefaultLimitPerMinute = 60, DropStrikeWindowSeconds = 10, DropStrikeThreshold = 10, FlightStateLimitPerMinute = 720 }
 GameConfig.Flight = { LiftK = 0.012, LiftCap = 200, DragK = 0.004, DiveExchangeRate = 2.5, StallAirspeed = 40, CorrectionLerpSeconds = 0.2, MaxDt = 0.05, SnapshotHz = 10, DiveLookDownY = -0.35, DiveLookDownSteerMult = 2, LandRayLength = 12, LandRayTrigger = 8 }
 GameConfig.Intercept = { Radius = 25, PairCooldownSeconds = 30, NewPlayerImmunitySeconds = 30 * 60 }
-GameConfig.World = { BaseSpacing = 600, BasePlatformSize = Vector3.new(180, 4, 180), LaunchEdgeAltitude = 160, IslandRadius = 80, IslandDistanceFactor = 0.35, IslandAngleStepDegrees = 65, NestGrabRadius = 80, NestRespawnSeconds = 15, SpawnGraceSeconds = 3, RespawnDelaySeconds = 3, IslandGroundHeight = 4, IslandLandRadius = 100, IslandLandSeconds = 2.5, IslandLandSpeedThreshold = 50, BaseLandSeconds = 2, LaunchRingWidth = 8, CharacterRootHeight = 3, HomePad = { ImpulseH = 70, ImpulseV = 45, LaunchSeconds = 1.5, ReturnImpulseH = 105, ReturnImpulseV = 50, ReturnBaseDistance = 180, ReturnScaleDistance = 315 }, SeatConfig = { AnchorHoldSeconds = 0.35, ConfirmSeconds = 0.5, HardCapSeconds = 6, PostCapFF = 2, CheckInterval = 0.1, RayLength = 6 } }
+GameConfig.World = { BaseSpacing = 600, BasePlatformSize = Vector3.new(180, 4, 180), LaunchEdgeAltitude = 160, IslandRadius = 80, IslandDistanceFactor = 0.35, IslandAngleStepDegrees = 65, NestGrabRadius = 80, NestRespawnSeconds = 15, SpawnGraceSeconds = 3, RespawnDelaySeconds = 3, IslandGroundHeight = 4, IslandLandRadius = 100, IslandLandSeconds = 2.5, IslandLandSpeedThreshold = 50, BaseLandSeconds = 2, LaunchRingWidth = 8, CharacterRootHeight = 3, HomePad = { ImpulseH = 70, ImpulseV = 45, LaunchSeconds = 1.5, ReturnImpulseH = 105, ReturnImpulseV = 50, ReturnBaseDistance = 180, ReturnScaleDistance = 315, ReturnFarDistance = 700, ReturnFarImpulseH = 145, ReturnFarImpulseV = 58 }, SeatConfig = { AnchorHoldSeconds = 0.35, ConfirmSeconds = 0.5, HardCapSeconds = 6, PostCapFF = 2, CheckInterval = 0.1, RayLength = 6 } }
 function GameConfig.terminalSpeed(carrying: boolean, dragMult: number?): number
 	local mult = dragMult
 	if mult == nil or mult <= 0 then
