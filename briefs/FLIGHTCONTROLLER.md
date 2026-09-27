@@ -26,6 +26,17 @@ Flight model (constants in GameConfig.Flight):
 - diveExchange = DIVE_EXCHANGE_RATE (1.2)
 - stallSpeed = STALL_AIRSPEED (40)
 - carryPenalty = CARRY_SPEED_PENALTY (0.85) on max speed when carrying
+- DiveKeyAccel = 85
+- DiveKeyLiftMult = 0
+- AileronYawDegPerSec = 90
+
+PC keys (client only, every aircraft tier, touch unchanged). Tracked with UserInputService while a character exists; cleared on CharacterAdded. Applied in the flying step after the camera wish lerp and before lift, drag, and gravity. Not applied during a server correction lerp.
+
+- Down: dive. Add `Vector3.new(0, -DiveKeyAccel, 0) * dt` to velocity, multiply liftForce by DiveKeyLiftMult, and skip dive-to-horizontal conversion (same skip as look.Y <= DiveLookDownY).
+- Left: rotate horizontal velocity (X, Z) counterclockwise by `math.rad(AileronYawDegPerSec) * dt`. Preserve Y and horizontal speed.
+- Right: rotate horizontal velocity clockwise by the same amount.
+
+No Up-arrow climb. No mouse aileron. Launch impulses unchanged.
 
 Correction: on server correction packet, lerp position over CORRECTION_LERP_SECONDS (0.2), never snap. During lerp, suppress input that fights the correction.
 

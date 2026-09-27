@@ -2,6 +2,7 @@
 -- Client predicts glide feel. Snapshots are claims; FlightService owns true position.
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Types = require(Shared:WaitForChild("Types"))
@@ -29,6 +30,9 @@ local snapshotAcc = 0
 local started = false
 
 local launchedUntil = 0
+local heldDown = false
+local heldLeft = false
+local heldRight = false
 
 local function characterRoot(): BasePart?
 	local character = Players.LocalPlayer.Character
@@ -81,6 +85,38 @@ end
 
 local function flying(): boolean
 	return state.mode == "Gliding" or state.mode == "Launched" or state.mode == "Stalled"
+end
+
+local function clearHeldKeys()
+	heldDown = false
+	heldLeft = false
+	heldRight = false
+end
+
+-- Presses require a live character. Releases still clear so a key cannot stick across respawn.
+local function trackArrowKey(input: InputObject, down: boolean)
+	if input.UserInputType ~= Enum.UserInputType.Keyboard then
+		return
+	end
+	if down and Players.LocalPlayer.Character == nil then
+		return
+	end
+	if input.KeyCode == Enum.KeyCode.Down then
+		heldDown = down
+	elseif input.KeyCode == Enum.KeyCode.Left then
+		heldLeft = down
+	elseif input.KeyCode == Enum.KeyCode.Right then
+		heldRight = down
+	end
+end
+
+-- Positive radians yaw left. XZ length is unchanged because this is a pure planar rotation.
+local function yawHorizontal(velocity: Vector3, radians: number): Vector3
+	local cosine = math.cos(radians)
+	local sine = math.sin(radians)
+	local x = velocity.X
+	local z = velocity.Z
+	return Vector3.new(x * cosine + z * sine, velocity.Y, -x * sine + z * cosine)
 end
 
 local function landOn(root: BasePart, point: Vector3)
@@ -148,7 +184,31 @@ local function step(dt: number)
 			state.velocity = state.velocity:Lerp(wish, alpha)
 			speed = state.velocity.Magnitude
 		end
+		-- Camera look cannot beat high-tier lift, so keys dive and yaw after the wish and before forces.
+		local diveHeld = false
+		if Players.LocalPlayer.Character ~= nil then
+			if heldDown then
+				diveHeld = true
+				state.velocity += Vector3.new(0, -GameConfig.Flight.DiveKeyAccel, 0) * dt
+			end
+			local yawRadians = 0
+			if heldLeft then
+				yawRadians += math.rad(GameConfig.Flight.AileronYawDegPerSec) * dt
+			end
+			if heldRight then
+				yawRadians -= math.rad(GameConfig.Flight.AileronYawDegPerSec) * dt
+			end
+			if yawRadians ~= 0 then
+				state.velocity = yawHorizontal(state.velocity, yawRadians)
+			end
+			if diveHeld or yawRadians ~= 0 then
+				speed = state.velocity.Magnitude
+			end
+		end
 		local liftForce = math.min(GameConfig.Flight.LiftK * speed * speed + lift, GameConfig.Flight.LiftCap)
+		if diveHeld then
+			liftForce *= GameConfig.Flight.DiveKeyLiftMult
+		end
 		local dragForce = GameConfig.Flight.DragK * speed * speed
 		if speed < GameConfig.Flight.StallAirspeed and state.mode == "Gliding" then
 			state.mode = "Stalled"
@@ -160,7 +220,8 @@ local function step(dt: number)
 			local drag = if speed > 0 then -state.velocity.Unit * dragForce else Vector3.zero
 			local gravity = Vector3.yAxis * -GRAVITY
 			state.velocity += (up + drag + gravity) * dt
-			if state.velocity.Y < 0 then
+			-- A keyed dive must stay vertical; the exchange would turn that drop into forward speed.
+			if state.velocity.Y < 0 and not diveHeld then
 				local horizontalLook = Vector3.new(look.X, 0, look.Z)
 				if horizontalLook.Magnitude > 0.01 then
 					local converted = -state.velocity.Y * GameConfig.Flight.DiveExchangeRate * dt
@@ -313,10 +374,17 @@ function FlightController.start()
 			end
 		end
 	end)
+	UserInputService.InputBegan:Connect(function(input: InputObject)
+		trackArrowKey(input, true)
+	end)
+	UserInputService.InputEnded:Connect(function(input: InputObject)
+		trackArrowKey(input, false)
+	end)
 	RunService.Heartbeat:Connect(function(dt)
 		step(dt)
 	end)
 	Players.LocalPlayer.CharacterAdded:Connect(function(character)
+		clearHeldKeys()
 		state.mode = "Grounded"
 		state.velocity = Vector3.zero
 		local root = character:WaitForChild("HumanoidRootPart")
