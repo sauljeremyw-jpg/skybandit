@@ -29,6 +29,10 @@ local snapshotAcc = 0
 local started = false
 
 local launchedUntil = 0
+local spawnGraceUntil = 0
+local timeOverIsland = 0
+local timeOverBase = 0
+local flightPrintPending = false
 
 local function characterRoot(): BasePart?
 	local character = Players.LocalPlayer.Character
@@ -84,6 +88,9 @@ local function flying(): boolean
 end
 
 local function landOn(root: BasePart, point: Vector3)
+	timeOverIsland = 0
+	timeOverBase = 0
+	flightPrintPending = false
 	state.mode = "Grounded"
 	state.velocity = Vector3.zero
 	state.position = point
@@ -95,24 +102,73 @@ local function landOn(root: BasePart, point: Vector3)
 	end
 end
 
-local function islandUnder(): Vector3?
+-- Mirrors islandUnder for the home Base platform so right-click look-around
+-- cannot trap the player hovering above the grey platform.
+-- Matches islandUnder pattern: speed-gated time-only force-land, no damp,
+-- no altitude trigger.  The altitude trigger was firing immediately after
+-- any ring-strip launch that kept the player inside the 90-stud footprint
+-- at launchedUntil expiry (e.g. east strip toward Meadowrock: X=86, Z≈83,
+-- both ≤ 90 → altitude Y≈163 ≤ platformTop+12=174 → force-land on Base).
+local function baseUnder(dt: number): Vector3?
+	local half = GameConfig.World.BasePlatformSize.X / 2
+	local halfZ = GameConfig.World.BasePlatformSize.Z / 2
+	if math.abs(state.position.X) <= half and math.abs(state.position.Z) <= halfZ then
+		local platformTop = GameConfig.World.LaunchEdgeAltitude + GameConfig.World.BasePlatformSize.Y / 2
+		local landY = platformTop + GameConfig.World.CharacterRootHeight
+		-- If the player has fallen through the deck (below platformTop - 2) they are
+		-- inside the lava/void under Base.  miss() never fires because XZ is inside
+		-- the Base footprint; PlatformStand=flying() freezes them in place.
+		-- Snap back to the platform surface immediately.
+		if state.position.Y < platformTop - 2 then
+			return Vector3.new(state.position.X, landY, state.position.Z)
+		end
+		local horizSpeed = Vector3.new(state.velocity.X, 0, state.velocity.Z).Magnitude
+		if horizSpeed < GameConfig.World.IslandLandSpeedThreshold then
+			timeOverBase += dt
+		end
+		if state.t >= launchedUntil and state.position.Y <= landY + 14 then
+			return Vector3.new(state.position.X, landY, state.position.Z)
+		end
+		if timeOverBase >= GameConfig.World.BaseLandSeconds then
+			return Vector3.new(state.position.X, landY, state.position.Z)
+		end
+		return nil
+	end
+	timeOverBase = 0
+	return nil
+end
+
+-- dt is accumulated to force a land after IslandLandSeconds so lift cannot
+-- keep the player hovering above the island indefinitely.
+local function islandUnder(dt: number, previousY: number): Vector3?
 	for _, island in GameConfig.Islands do
 		if island.inSlice then
 			local origin = GameConfig.islandWorldPosition(island.id)
 			if origin then
 				local flat = Vector3.new(state.position.X - origin.X, 0, state.position.Z - origin.Z)
-				local top = origin.Y + 5
 				if flat.Magnitude <= GameConfig.World.IslandRadius - 4 then
-					if state.position.Y > top then
-						state.velocity = Vector3.new(state.velocity.X * 0.8, math.min(state.velocity.Y, -45), state.velocity.Z * 0.8)
+					local horizSpeed = Vector3.new(state.velocity.X, 0, state.velocity.Z).Magnitude
+					if horizSpeed < GameConfig.World.IslandLandSpeedThreshold then
+						timeOverIsland += dt
 					end
-					if state.position.Y <= top + 10 then
-						return Vector3.new(origin.X + flat.X, top, origin.Z + flat.Z)
+					local groundTop = origin.Y + GameConfig.World.IslandGroundHeight / 2
+					local landY = groundTop + GameConfig.World.CharacterRootHeight
+					-- Crossing snap: player passed through the deck this frame.
+					if previousY > groundTop and state.position.Y <= groundTop then
+						return Vector3.new(origin.X + flat.X, landY, origin.Z + flat.Z)
 					end
+					if state.t >= launchedUntil and state.position.Y <= landY + 14 then
+						return Vector3.new(origin.X + flat.X, landY, origin.Z + flat.Z)
+					end
+					if timeOverIsland >= GameConfig.World.IslandLandSeconds then
+						return Vector3.new(origin.X + flat.X, landY, origin.Z + flat.Z)
+					end
+					return nil
 				end
 			end
 		end
 	end
+	timeOverIsland = 0
 	return nil
 end
 
@@ -132,7 +188,14 @@ local function step(dt: number)
 	if root and not correcting and not flying() then
 		state.position = root.Position
 		state.velocity = root.AssemblyLinearVelocity
+		-- Softlock escape: if grounded below safe altitude (lava zone) and
+		-- TakeDamage was blocked by ForceField or Spawning attribute, force-kill
+		-- via Health=0 (direct assignment bypasses both protections).
+		if state.position.Y < 40 then
+			miss(root)
+		end
 	end
+	local stepPreviousY = state.position.Y
 	if correcting then
 		applyCorrection(dt)
 	elseif flying() then
@@ -143,91 +206,153 @@ local function step(dt: number)
 		end
 		local speed = state.velocity.Magnitude
 		if speed > 0.01 then
-			local wish = look.Unit * speed
-			local alpha = math.clamp(dt * GameConfig.Flight.SnapshotHz, 0, 1)
-			state.velocity = state.velocity:Lerp(wish, alpha)
+			if not (carrying and state.t < launchedUntil) then
+				local flatLook = Vector3.new(look.X, 0, look.Z)
+				if flatLook.Magnitude > 0.01 then
+					local wish = flatLook.Unit * speed
+					if look.Y <= GameConfig.Flight.DiveLookDownY then
+						wish = wish + Vector3.new(0, math.max(look.Y, -0.25) * speed, 0)
+					end
+					state.velocity = state.velocity:Lerp(wish, math.clamp(dt * GameConfig.Flight.SnapshotHz, 0, 1))
+				end
+			end
 			speed = state.velocity.Magnitude
 		end
 		local liftForce = math.min(GameConfig.Flight.LiftK * speed * speed + lift, GameConfig.Flight.LiftCap)
-		local dragForce = GameConfig.Flight.DragK * speed * speed
+		local currentAircraft = GameConfig.getAircraft(aircraftTier)
+		local dragMult = if currentAircraft ~= nil then currentAircraft.dragMult else 1
+		local dragForce = GameConfig.Flight.DragK * dragMult * speed * speed
 		if speed < GameConfig.Flight.StallAirspeed and state.mode == "Gliding" then
 			state.mode = "Stalled"
 		elseif speed >= GameConfig.Flight.StallAirspeed and state.mode ~= "Grounded" then
 			state.mode = "Gliding"
 		end
 		if state.mode == "Gliding" or state.mode == "Launched" then
+			local over = state.position.Y - GameConfig.Flight.CruiseAltitude
+			if over > 0 then
+				local fade = math.clamp(1 - over / GameConfig.Flight.CeilingSoft, 0, 1)
+				liftForce *= fade
+			end
 			local up = Vector3.yAxis * liftForce
 			local drag = if speed > 0 then -state.velocity.Unit * dragForce else Vector3.zero
 			local gravity = Vector3.yAxis * -GRAVITY
 			state.velocity += (up + drag + gravity) * dt
 			if state.velocity.Y < 0 then
-				local horizontalLook = Vector3.new(look.X, 0, look.Z)
-				if horizontalLook.Magnitude > 0.01 then
-					local converted = -state.velocity.Y * GameConfig.Flight.DiveExchangeRate * dt
-					state.velocity += horizontalLook.Unit * converted
+				-- Skip dive-to-horizontal conversion when looking steeply down so
+				-- the player sinks toward the landing spot instead of being pushed flat.
+				if look.Y > GameConfig.Flight.DiveLookDownY then
+					local horizontalLook = Vector3.new(look.X, 0, look.Z)
+					if horizontalLook.Magnitude > 0.01 then
+						local converted = -state.velocity.Y * GameConfig.Flight.DiveExchangeRate * dt
+						state.velocity += horizontalLook.Unit * converted
+					end
 				end
 			end
-			local terminal = GameConfig.terminalSpeed(carrying)
+			local terminal = GameConfig.terminalSpeed(carrying, dragMult)
+			if flightPrintPending then
+				flightPrintPending = false
+				print("[flight]", "tier", aircraftTier, "dragMult", dragMult, "terminal", terminal)
+			end
 			if state.velocity.Magnitude > terminal then
 				state.velocity = state.velocity.Unit * terminal
 			end
+			local previous = state.position
 			state.position += state.velocity * dt
-		end
-		local meadow = GameConfig.islandWorldPosition("meadowrock")
-		if meadow and aircraftTier == 1 then
-			local toward = Vector3.new(meadow.X - state.position.X, 0, meadow.Z - state.position.Z)
-			if toward.Magnitude > 20 then
-				local horiz = Vector3.new(state.velocity.X, 0, state.velocity.Z)
-				local speed = math.max(horiz.Magnitude, 70)
-				local aimed = toward.Unit * speed
-				local blend = math.clamp(dt * 3, 0, 0.45)
-				horiz = horiz:Lerp(aimed, blend)
-				state.velocity = Vector3.new(horiz.X, state.velocity.Y, horiz.Z)
+			-- Over-pad sink: push down when lingering high above a landing surface.
+			if state.t >= launchedUntil and flying() then
+				local sinkX = math.abs(state.position.X)
+				local sinkZ = math.abs(state.position.Z)
+				local halfPad = GameConfig.World.BasePlatformSize.X / 2
+				local halfPadZ = GameConfig.World.BasePlatformSize.Z / 2
+				local platformTop = GameConfig.World.LaunchEdgeAltitude + GameConfig.World.BasePlatformSize.Y / 2
+				local sank = false
+				if sinkX <= halfPad and sinkZ <= halfPadZ then
+					if state.position.Y > platformTop + 8 then
+						state.velocity = Vector3.new(state.velocity.X * 0.90, math.min(state.velocity.Y, -55), state.velocity.Z * 0.90)
+						sank = true
+					end
+				end
+				if not sank then
+					for _, island in GameConfig.Islands do
+						if island.inSlice then
+							local orig = GameConfig.islandWorldPosition(island.id)
+							if orig then
+								local iflat = Vector3.new(state.position.X - orig.X, 0, state.position.Z - orig.Z)
+								if iflat.Magnitude <= GameConfig.World.IslandRadius - 4 then
+									local iGroundTop = orig.Y + GameConfig.World.IslandGroundHeight / 2
+									if state.position.Y > iGroundTop + 8 then
+										state.velocity = Vector3.new(state.velocity.X * 0.90, math.min(state.velocity.Y, -55), state.velocity.Z * 0.90)
+									end
+									break
+								end
+							end
+						end
+					end
+				end
+			end
+			if root and flying() then
+				local sweepParams = RaycastParams.new()
+				sweepParams.FilterType = Enum.RaycastFilterType.Exclude
+				local character = root.Parent
+				if character then
+					sweepParams.FilterDescendantsInstances = { character }
+				end
+				local delta = state.position - previous
+				local sweepHit = workspace:Raycast(previous, delta + Vector3.new(0, -2, 0), sweepParams)
+				if sweepHit and sweepHit.Instance:FindFirstAncestor("GeneratedWorld") ~= nil and sweepHit.Position.Y >= 40 then
+					landOn(root, Vector3.new(sweepHit.Position.X, sweepHit.Position.Y + GameConfig.World.CharacterRootHeight, sweepHit.Position.Z))
+				end
 			end
 		end
 	end
 	state.altitude = state.position.Y
 	if root and flying() and not correcting and state.t >= launchedUntil then
-		local spot = islandUnder()
+		local spot = islandUnder(dt, stepPreviousY)
 		if spot then
 			landOn(root, spot)
-		elseif state.position.Y < 40 then
-			miss(root)
-		elseif state.velocity.Y <= 8 then
-			local params = RaycastParams.new()
-			params.FilterType = Enum.RaycastFilterType.Exclude
-			local character = root.Parent
-			if character then
-				params.FilterDescendantsInstances = { character }
-			end
-			local hit = workspace:Raycast(state.position, Vector3.new(0, -12, 0), params)
-			if hit and state.position.Y - hit.Position.Y < 6 then
-				local name = hit.Instance.Name
-				local basePiece = name == "Platform" or name == "JumpPad" or name == "SpawnLocation" or name == "WallN" or name == "WallS" or name == "WallE"
-				if not basePiece then
-					local safe = hit.Instance:FindFirstAncestor("GeneratedWorld") ~= nil and hit.Position.Y >= 40
-					if not safe then
+		else
+			local baseSpot = baseUnder(dt)
+			if baseSpot then
+				landOn(root, baseSpot)
+			elseif state.position.Y < 40 then
+				miss(root)
+			elseif state.velocity.Y <= 8 then
+				local params = RaycastParams.new()
+				params.FilterType = Enum.RaycastFilterType.Exclude
+				local character = root.Parent
+				if character then
+					params.FilterDescendantsInstances = { character }
+				end
+				local ray = Vector3.new(0, -GameConfig.Flight.LandRayLength, 0)
+				local hit = workspace:Raycast(state.position, ray, params)
+				if hit and state.position.Y - hit.Position.Y < GameConfig.Flight.LandRayTrigger then
+					if hit.Instance:FindFirstAncestor("GeneratedWorld") ~= nil and hit.Position.Y >= 40 then
+						landOn(root, Vector3.new(state.position.X,
+							hit.Position.Y + GameConfig.World.CharacterRootHeight,
+							state.position.Z))
+					elseif hit.Instance:FindFirstAncestor("GeneratedWorld") == nil then
 						miss(root)
-					else
-						landOn(root, Vector3.new(state.position.X, hit.Position.Y + 3, state.position.Z))
 					end
 				end
 			end
 		end
 	end
-	if root and (correcting or flying()) then
+	if root then
 		local humanoid = humanoidOf(root)
-		if humanoid and flying() then
-			humanoid.PlatformStand = true
-		elseif humanoid and not flying() then
-			humanoid.PlatformStand = false
+		if humanoid then
+			-- PlatformStand synced every frame: true while airborne (prevents normal
+			-- walking physics from fighting flight), false every Grounded frame so the
+			-- character can walk immediately without needing a separate landOn call.
+			humanoid.PlatformStand = flying()
 		end
-		root.AssemblyLinearVelocity = state.velocity
-		local face = Vector3.new(state.velocity.X, 0, state.velocity.Z)
-		if face.Magnitude > 0.01 then
-			root.CFrame = CFrame.lookAt(state.position, state.position + face.Unit)
-		else
-			root.CFrame = CFrame.new(state.position)
+		if correcting or flying() then
+			root.AssemblyLinearVelocity = state.velocity
+			local face = Vector3.new(state.velocity.X, 0, state.velocity.Z)
+			if face.Magnitude > 0.01 then
+				root.CFrame = CFrame.lookAt(state.position, state.position + face.Unit)
+			else
+				root.CFrame = CFrame.new(state.position)
+			end
 		end
 	end
 	snapshotAcc += dt
@@ -254,8 +379,47 @@ local function launch()
 	if horizontal.Magnitude < 0.25 then
 		horizontal = Vector3.zAxis
 	end
-	state.velocity = horizontal.Unit * 90 + Vector3.new(0, -30, 0)
+	state.velocity = horizontal.Unit * GameConfig.World.HomePad.OutboundImpulseH
+		+ Vector3.new(0, GameConfig.World.HomePad.OutboundImpulseV, 0)
 	launchedUntil = state.t + 1.2
+	flightPrintPending = true
+end
+
+local function launchHome()
+	local root = characterRoot()
+	if root == nil or flying() then
+		return
+	end
+	-- Aim horizontally toward the world origin where Base sits (0, 0, 0).
+	-- Positive ImpulseV overcomes the altitude deficit between island and Base.
+	local flat = Vector3.new(state.position.X, 0, state.position.Z)
+	local homeDir: Vector3 = if flat.Magnitude > 1 then -flat.Unit else -Vector3.zAxis
+	state.mode = "Launched"
+	state.position = root.Position
+	-- Blend return impulse by flat distance to Base.
+	-- At ReturnBaseDistance (Meadowrock ≈ 180) use outbound values (gentle).
+	-- At ReturnScaleDistance (Thornspire ≈ 315) and beyond use full return values.
+	-- This prevents Meadowrock's short hop from overshooting Base 2× too high
+	-- while still giving Thornspire and farther islands enough reach.
+	local baseD = GameConfig.World.HomePad.ReturnBaseDistance
+	local scaleD = GameConfig.World.HomePad.ReturnScaleDistance
+	local blend = math.clamp((flat.Magnitude - baseD) / math.max(scaleD - baseD, 1), 0, 1)
+	local impH = GameConfig.World.HomePad.ImpulseH
+		+ (GameConfig.World.HomePad.ReturnImpulseH - GameConfig.World.HomePad.ImpulseH) * blend
+	local impV = GameConfig.World.HomePad.ImpulseV
+		+ (GameConfig.World.HomePad.ReturnImpulseV - GameConfig.World.HomePad.ImpulseV) * blend
+	local farD = GameConfig.World.HomePad.ReturnFarDistance
+	if flat.Magnitude >= farD then
+		local farSpan = 1050 - farD
+		local farT = math.clamp((flat.Magnitude - farD) / math.max(farSpan, 1), 0, 1)
+		impH = GameConfig.World.HomePad.ReturnImpulseH
+			+ (GameConfig.World.HomePad.ReturnFarImpulseH - GameConfig.World.HomePad.ReturnImpulseH) * farT
+		impV = GameConfig.World.HomePad.ReturnImpulseV
+			+ (GameConfig.World.HomePad.ReturnFarImpulseV - GameConfig.World.HomePad.ReturnImpulseV) * farT
+	end
+	state.velocity = homeDir * impH + Vector3.new(0, impV, 0)
+	launchedUntil = state.t + GameConfig.World.HomePad.LaunchSeconds
+	flightPrintPending = true
 end
 
 function FlightController.start()
@@ -297,19 +461,58 @@ function FlightController.start()
 	task.spawn(function()
 		local world = workspace:WaitForChild("GeneratedWorld")
 		local base = world:WaitForChild("Base")
-		local pad = base:WaitForChild("JumpPad")
-		if pad:IsA("BasePart") then
+
+		-- Connect launch to every JumpPad strip in the ring.  ChildAdded handles
+		-- parts that replicate after WaitForChild("Base") resolves.
+		local function hookPad(child: Instance)
+			if not child:IsA("BasePart") then return end
+			local pad = child :: BasePart
 			pad.Touched:Connect(function(hit)
 				local character = Players.LocalPlayer.Character
 				if character and hit:IsDescendantOf(character) then
+					if os.clock() < spawnGraceUntil then return end
 					launch()
 				end
 			end)
 			local prompt = pad:FindFirstChild("LaunchPrompt")
 			if prompt and prompt:IsA("ProximityPrompt") then
 				prompt.Triggered:Connect(function()
+					if os.clock() < spawnGraceUntil then return end
 					launch()
 				end)
+			end
+		end
+
+		for _, child in base:GetChildren() do
+			if child.Name == "JumpPad" then
+				hookPad(child)
+			end
+		end
+		base.ChildAdded:Connect(function(child)
+			if child.Name == "JumpPad" then
+				hookPad(child)
+			end
+		end)
+		-- Wire the orange spring (HomePad) on every in-slice island so the player
+		-- can return to Base after a grab regardless of which island they landed on.
+		for _, islandDef in GameConfig.Islands do
+			if islandDef.inSlice then
+				local islandModel = world:WaitForChild(islandDef.id, 15)
+				if islandModel then
+					local homePad = islandModel:FindFirstChild("HomePad")
+					if homePad and homePad:IsA("BasePart") then
+						homePad.Touched:Connect(function(hit)
+							local character = Players.LocalPlayer.Character
+							if character and hit:IsDescendantOf(character) then
+								launchHome()
+							end
+						end)
+						local homePrompt = homePad:FindFirstChild("LaunchHomePrompt")
+						if homePrompt and homePrompt:IsA("ProximityPrompt") then
+							homePrompt.Triggered:Connect(launchHome)
+						end
+					end
+				end
 			end
 		end
 	end)
@@ -319,6 +522,11 @@ function FlightController.start()
 	Players.LocalPlayer.CharacterAdded:Connect(function(character)
 		state.mode = "Grounded"
 		state.velocity = Vector3.zero
+		timeOverIsland = 0
+		timeOverBase = 0
+		-- Grace window: ignore JumpPad touch immediately after spawn so the
+		-- character cannot be auto-launched off Base before they are stable.
+		spawnGraceUntil = os.clock() + GameConfig.World.SpawnGraceSeconds
 		local root = character:WaitForChild("HumanoidRootPart")
 		if not root:IsA("BasePart") then
 			return
@@ -327,7 +535,7 @@ function FlightController.start()
 			if state.t < launchedUntil or not flying() then
 				return
 			end
-			if part:IsDescendantOf(character) or part.Name == "JumpPad" then
+			if part:IsDescendantOf(character) or part.Name == "JumpPad" or part.Name == "HomePad" then
 				return
 			end
 			if state.velocity.Y > 0 then

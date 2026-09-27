@@ -83,7 +83,9 @@ local function acceptClaim(player: Player, payload: any)
 	end
 	local maxWindow = (1 / GameConfig.Flight.SnapshotHz) / GameConfig.Economy.CarrySpeedPenalty
 	local dt = math.clamp(nowClock - previousAt, GameConfig.Flight.MaxDt, maxWindow)
-	local allowed = GameConfig.terminalSpeed(carrying[player] == true) * (dt + GameConfig.Flight.MaxDt)
+	local aircraft = GameConfig.getAircraft(tiers[player] or 1)
+	local dragMult = if aircraft ~= nil then aircraft.dragMult else 1
+	local allowed = GameConfig.terminalSpeed(carrying[player] == true, dragMult) * (dt + GameConfig.Flight.MaxDt)
 	local corrected = claimed
 	local delta = claimed - previous
 	if delta.Magnitude > allowed and delta.Magnitude > 0 then
@@ -106,9 +108,10 @@ function FlightService.start()
 		return
 	end
 	started = true
+	-- 720/min = 12 Hz headroom over the 10 Hz client send rate (SnapshotHz * 60 + 120).
 	Net.handleEvent("flight:state", function(player, payload)
 		acceptClaim(player, payload)
-	end)
+	end, GameConfig.Net.FlightStateLimitPerMinute)
 	Players.PlayerRemoving:Connect(function(player)
 		positions[player] = nil
 		lastClaimAt[player] = nil
