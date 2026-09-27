@@ -178,8 +178,11 @@ function WorldBuilder.build()
 	if baseplate then
 		baseplate:Destroy()
 	end
-	local lava = part("Lava", Vector3.new(12000, 6, 12000), CFrame.new(0, 1, 0), Color3.fromRGB(255, 60, 0), folder)
-	lava.Material = Enum.Material.Neon
+	-- Renamed Lava→Ocean; kill behavior and Touched handler below are unchanged.
+	local lava = part("Ocean", Vector3.new(12000, 6, 12000), CFrame.new(0, 1, 0), Color3.fromRGB(15, 95, 155), folder)
+	lava.Material = Enum.Material.Glass
+	lava.Transparency = 0.4
+	lava.Reflectance = 0.2
 	lava.Touched:Connect(function(hit)
 		local character = hit:FindFirstAncestorOfClass("Model")
 		if character == nil then
