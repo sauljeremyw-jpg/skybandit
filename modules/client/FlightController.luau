@@ -158,14 +158,7 @@ local function islandUnder(dt: number): Vector3?
 					end
 					local groundTop = origin.Y + GameConfig.World.IslandGroundHeight / 2
 					local landY = groundTop + GameConfig.World.CharacterRootHeight
-					-- Altitude trigger restored: safe now that IslandAngleStepDegrees=65
-					-- ensures every path to any island clears all intermediate island
-					-- flat radii by ≥115 studs.  Without this, fast players (>50 studs/s)
-					-- skip time accumulation AND have no floor check → fly through the
-					-- deck into lava below (Cloudforge FAIL).
-					if state.position.Y <= groundTop + GameConfig.World.IslandLandRadius
-						or timeOverIsland >= GameConfig.World.IslandLandSeconds
-					then
+					if timeOverIsland >= GameConfig.World.IslandLandSeconds then
 						return Vector3.new(origin.X + flat.X, landY, origin.Z + flat.Z)
 					end
 					return nil
